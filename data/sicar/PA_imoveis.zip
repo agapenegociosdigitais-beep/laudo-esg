@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+
+<html lang="pt-br">
+	<head>
+		<title>Im&oacute;veis</title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+		<link rel="stylesheet" media="screen" href="/publico/public/stylesheets/font-awesome.css">
+		<link rel="stylesheet" media="screen" href="/publico/public/stylesheets/bootstrap.min.css">
+		<link rel="stylesheet" media="screen" href="/publico/public/stylesheets/bootstrap-theme.min.css">
+		<link rel="stylesheet" media="screen" href="/publico/public/stylesheets/main.css">
+		<link rel="stylesheet" media="screen" href="/publico/public/stylesheets/navbar.css">
+			<link rel="stylesheet" media="screen" href="/publico/public/stylesheets/leaflet.css">
+	<link rel="stylesheet" media="screen" href="/publico/public/stylesheets/imoveis.css">
+	<link rel="stylesheet" media="screen" href="/publico/public/stylesheets/easy-button.css">
+	<link rel="stylesheet" media="screen" href="/publico/public/stylesheets/leaflet-custom.css">
+	<link rel="stylesheet" media="screen" href="/publico/public/stylesheets/menu-layers.css">
+	<link rel="stylesheet" media="screen" href="/publico/public/stylesheets/Leaflet.GraphicScale.min.css">
+	<link rel="stylesheet" media="screen" href="/publico/public/stylesheets/leaflet-search.css">
+	<link rel="stylesheet" media="screen" href="/publico/public/stylesheets/pace.css">
+		<link rel="shortcut icon" type="image/png" href="/publico/public/images/favicon.ico">
+</head>
+<body>
+
+	<nav class="navbar navbar-inverse navbar-fixed-top visible-sm visible-xs">
+		<div class="container-fluid">
+			<div class="navbar-header">
+				<button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar">
+					<span class="sr-only">Mostrar menu</span>
+					<span class="icon-bar"></span>
+					<span class="icon-bar"></span>
+					<span class="icon-bar"></span>
+				</button>
+				<a class="navbar-brand inicial-relatorio" href="#"><img src="/publico/public/images/logo_car.png" class="img-responsive"></a>
+			</div>
+			<div id="navbar" class="navbar-collapse collapse">
+				<ul class="nav navbar-nav navbar-right">
+					<li class="active"><a href="/publico/imoveis/index">IMÓVEIS</a></li>
+					<!-- <li class=""><a href="/publico/tematicos/regularidade">REGULARIDADE</a></li> -->
+					<!-- <li class=""><a href="/publico/tematicos/restricoes">RESTRIÇÕES</a></li> -->
+					<!-- <li class=""><a href="/publico/municipios/downloads">BASE DE DOWNLOADS</a></li> -->
+					<li class=""><a href="/publico/estados/downloads">BASE DE DOWNLOADS</a></li>
+					<li class=""><a href="https://app.powerbi.com/view?r=eyJrIjoiZmRiM2QwZDQtYjUxZi00YWI0LWFjNGEtZTIxNjg1YWFkNmZlIiwidCI6ImViMjJjMjU4LWQ0ZWQtNGZmMC04Y2Y2LTI4NmQ2Mjc3OTQ5ZSJ9" target="_blank" >PAINEL DE REGULARIZAÇÃO AMBIENTAL</a></li>
+					<li class=""><a href="/publico/geoservicos/index">GEOSERVIÇOS</a></li>
+					
+					<!--<li class=""><a href="https://www.car.gov.br/#/centralConteudo/boletim" target="_blank">BOLETINS INFORMATIVOS DO CAR</a></li>-->
+				</ul>
+			</div>
+		</div>
+	</nav>
+
+	<div class="container-fluid">
+		<div class="row">
+
+			<div class="col-md-3 col-lg-2 hidden-sm hidden-xs" id="list-acoes">
+
+				<a href="/publico/imoveis/index"><img src="/publico/public/images/logo_car.png" class="img-responsive inicial-relatorio"></a>
+
+				<ul class="nav nav-pills nav-stacked">
+					<li role="presentation" class="active"><a href="/publico/imoveis/index">IMÓVEIS</a></li>
+					<!-- <li role="presentation" class=""><a href="/publico/tematicos/regularidade">REGULARIDADE</a></li> -->
+					<!-- <li role="presentation" class=""><a href="/publico/tematicos/restricoes">RESTRIÇÕES</a></li> -->
+					<!-- <li role="presentation" class=""><a href="/publico/municipios/downloads">BASE DE DOWNLOADS</a></li> -->
+					<li role="presentation" class=""><a href="/publico/estados/downloads">BASE DE DOWNLOADS</a></li>
+					<li role="presentation" class=""><a href="https://app.powerbi.com/view?r=eyJrIjoiZmRiM2QwZDQtYjUxZi00YWI0LWFjNGEtZTIxNjg1YWFkNmZlIiwidCI6ImViMjJjMjU4LWQ0ZWQtNGZmMC04Y2Y2LTI4NmQ2Mjc3OTQ5ZSJ9" target="_blank" >PAINEL DE REGULARIZAÇÃO AMBIENTAL</a></li>
+					<li role="presentation" class=""><a href="/publico/geoservicos/index">GEOSERVIÇOS</a></li>
+					<!--<li role="presentation" class=""><a href="https://www.car.gov.br/#/centralConteudo/boletim" target="_blank">BOLETINS INFORMATIVOS DO CAR</a></li>-->
+				</ul>
+
+				<!-- <div class="menu-footer col-md-3 col-lg-2">
+
+					<a href="http://www.florestal.gov.br/" target="_blank"><img src="/publico/public/images/logo_sfb.png" class="img-responsive"></a>
+
+					
+										
+					<div class="versao">Versão 1.1</div>
+				</div> -->
+
+			</div>
+
+			<div class="col-md-9 col-lg-10 col-sm-12 col-xs-12 col-right">
+				
+
+
+
+<div id="mapa-imoveis"></div>
+
+
+
+<!-- <div class="quadro-informativo">
+
+	<div class="fundo-branco">
+
+		<img src="/publico/public/images/bandeiras/br.png"/>
+		<b class="regiao">Brasil</b>
+
+		<div class="dados-brasil">
+
+			<div class="quadro-dados">
+				<h5>total de imóveis:</h5>
+				<h3 class="total-de-imoveis">6.521.253</h3>
+				<div class="progress">
+					<div class="progress-bar progress-bar-success ativo" style="width: 100.0%">
+
+					</div>
+					<div class="progress-bar progress-bar-warning pendente" style="width: 3.5094579206645933%">
+
+					</div>
+					<div class="progress-bar progress-bar-danger cancelado" style="width: 0.7577696337313062%">
+
+					</div>
+				</div>
+			</div>
+
+			<div class="quadro-dados area-cadastrada">
+				<div id="circle">
+					<div></div>
+					<b>100.0</b>
+				</div>
+				<h5 class="circle">Área cadastrada:</h5>
+				<h4 class="circle area-cadastrada">651.771.041,48 ha</h4>
+			</div>
+
+
+			<div class="quadro-dados botao-download">
+				
+				<a href="../municipios/downloads">
+					<div class="fa fa-cloud-download"></div>
+					<div>Downloads</div>
+				</a>
+			</div>
+
+
+		</div>
+
+
+	</div>
+
+</div> -->
+			</div>
+
+		</div>
+
+	</div>
+
+	<script src="/publico/public/javascripts/jquery-3.1.1.min.js" type="text/javascript" charset="utf-8"></script>
+	<script src="/publico/public/javascripts/bootstrap.min.js" type="text/javascript" charset="utf-8"></script>
+	<script src="/publico/public/javascripts/lodash.core.min.js" type="text/javascript" charset="utf-8"></script>
+	<script src="/publico/public/javascripts/formatacao.js" type="text/javascript" charset="utf-8"></script>
+	<script src="https://maps.googleapis.com/maps/api/js?v=3.2&key=AIzaSyAiU1s8eAgYTI09A6awKaPZfOomgAv74tU"
+        async defer></script>
+	<script src="/publico/public/javascripts/layers/ufs.js" type="text/javascript" charset="utf-8"></script>
+	<script src="/publico/public/javascripts/layers/cidades.js" type="text/javascript" charset="utf-8"></script>
+	<script src="/publico/public/javascripts/layers/cidade.js" type="text/javascript" charset="utf-8"></script>
+	<script src="/publico/public/javascripts/layers/imovel.js" type="text/javascript" charset="utf-8"></script>
+	<script src="/publico/public/javascripts/leaflet.js" type="text/javascript" charset="utf-8"></script>
+	<script src="/publico/public/javascripts/FileSaver.min.js" type="text/javascript" charset="utf-8"></script>
+	<script src="/publico/public/javascripts/leaflet.edgebuffer.js" type="text/javascript" charset="utf-8"></script>
+	<script src="/publico/public/javascripts/Leaflet.GraphicScale.js" type="text/javascript" charset="utf-8"></script>
+	<script src="/publico/public/javascripts/leaflet-search.js" type="text/javascript" charset="utf-8"></script>
+	<script src="/publico/public/javascripts/easy-button.js" type="text/javascript" charset="utf-8"></script>
+	<script src="/publico/public/javascripts/circle-progress.min.js" type="text/javascript" charset="utf-8"></script>
+	<script src="/publico/public/javascripts/menuLayers.js" type="text/javascript" charset="utf-8"></script>
+	<script src="/publico/public/javascripts/layers/wmsTile.js" type="text/javascript" charset="utf-8"></script>
+	<script src="/publico/public/javascripts/layers/camadas.js" type="text/javascript" charset="utf-8"></script>
+	<script src="/publico/public/javascripts/layers/arvoreCamadas.js" type="text/javascript" charset="utf-8"></script>
+	<script src="/publico/public/javascripts/search-button.js" type="text/javascript" charset="utf-8"></script>
+	<script src="/publico/public/javascripts/Leaflet.GoogleMutant.js" type="text/javascript" charset="utf-8"></script>
+	<script src="/publico/public/javascripts/pace.min.js" type="text/javascript" charset="utf-8"></script>
+	<script src="/publico/public/javascripts/imoveis.js" type="text/javascript" charset="utf-8"></script>
+</body>
+</html>

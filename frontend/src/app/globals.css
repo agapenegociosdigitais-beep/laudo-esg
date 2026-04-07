@@ -1,0 +1,35 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Importa ícones do Leaflet */
+@import 'leaflet/dist/leaflet.css';
+
+:root {
+  --verde-escuro: #1b5e20;
+  --verde-medio: #2e7d32;
+  --verde-claro: #43a047;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  @apply bg-gray-50 text-gray-900 antialiased;
+}
+
+/* Remove o fundo branco padrão do Leaflet */
+.leaflet-container {
+  background: #e8f0e0;
+}
+
+/* Animação de loading */
+@keyframes pulse-verde {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.animate-pulse-verde {
+  animation: pulse-verde 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
