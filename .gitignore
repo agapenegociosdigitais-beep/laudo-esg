@@ -32,3 +32,18 @@ backend/reports/
 .vscode/
 *.swp
 .DS_Store
+
+# Backup files (database)
+backup_usuarios.sql
+
+# Test files
+TESTE_*.sh
+TESTE_*.md
+prodes_resultado*.json
+resultado_car_*.json
+BUG_FIX_*.md
+IMPLEMENTACAO_*.md
+INTEGRACAO_DADOS_REAIS.md
+PROXIMO_PASSO.md
+RELATORIO_*.md
+SEMAS_PA_*.md
