@@ -1,5 +1,6 @@
 """Schemas Pydantic para endpoints administrativos."""
 import uuid
+from datetime import datetime
 from typing import Optional
 
 from pydantic import BaseModel
@@ -34,3 +35,29 @@ class EstatisticasAdmin(BaseModel):
     analises_mes_atual: int
     cars_consultados: int
     top_usuarios: list[TopUsuario]
+
+
+class AnaliseAdminResposta(BaseModel):
+    """Análise vista pelo admin."""
+    id: uuid.UUID
+    numero_car: str
+    nome_propriedade: Optional[str] = None
+    usuario_email: Optional[str] = None
+    status: str
+    score_esg: Optional[float] = None
+    nivel_risco: Optional[str] = None
+    criado_em: datetime
+
+
+class StatusAPI(BaseModel):
+    """Status de uma API externa."""
+    online: bool
+    latencia_ms: Optional[int] = None
+    ultima_verificacao: datetime
+
+
+class StatusAPIsExternas(BaseModel):
+    """Status de todas as APIs externas."""
+    ibama: StatusAPI
+    semas: StatusAPI
+    prodes: StatusAPI

@@ -7,6 +7,8 @@ import { authStorage } from '@/services/auth'
 import type { EstatisticasAdmin, UsuarioAdmin } from '@/types'
 import AdminStats from '@/components/Admin/AdminStats'
 import UsuariosTable from '@/components/Admin/UsuariosTable'
+import ApiStatusPanel from '@/components/Admin/ApiStatusPanel'
+import AnalisesTable from '@/components/Admin/AnalisesTable'
 
 export default function AdminPage() {
   const router = useRouter()
@@ -117,6 +119,18 @@ export default function AdminPage() {
             onEditarLimite={handleEditarLimite}
             carregando={carregando}
           />
+        </div>
+
+        {/* Status das APIs */}
+        <div className="mt-8">
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">Status das APIs Externas</h2>
+          <ApiStatusPanel />
+        </div>
+
+        {/* Análises Recentes */}
+        <div className="mt-8">
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">Análises Recentes</h2>
+          <AnalisesTable />
         </div>
       </div>
     </div>

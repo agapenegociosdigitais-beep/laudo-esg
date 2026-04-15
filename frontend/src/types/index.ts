@@ -243,3 +243,26 @@ export interface EstatisticasAdmin {
   cars_consultados: number
   top_usuarios: TopUsuario[]
 }
+
+export interface AnaliseAdmin {
+  id: string
+  numero_car: string
+  nome_propriedade?: string
+  usuario_email?: string
+  status: string
+  score_esg?: number
+  nivel_risco?: string
+  criado_em: string
+}
+
+export interface StatusAPI {
+  online: boolean
+  latencia_ms?: number
+  ultima_verificacao: string
+}
+
+export interface StatusAPIsExternas {
+  ibama: StatusAPI
+  semas: StatusAPI
+  prodes: StatusAPI
+}

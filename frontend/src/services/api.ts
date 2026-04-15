@@ -184,6 +184,18 @@ export const adminService = {
     const { data } = await api.get<EstatisticasAdmin>('/admin/estatisticas')
     return data
   },
+
+  async listarAnalises(status?: string, pagina = 1, por_pagina = 20): Promise<AnaliseAdmin[]> {
+    const { data } = await api.get<AnaliseAdmin[]>('/admin/analises', {
+      params: { status, pagina, por_pagina },
+    })
+    return data
+  },
+
+  async verificarStatusAPIs(): Promise<StatusAPIsExternas> {
+    const { data } = await api.get<StatusAPIsExternas>('/admin/apis/status')
+    return data
+  },
 }
 
 export default api
