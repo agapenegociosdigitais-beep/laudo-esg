@@ -26,6 +26,7 @@ from sqlalchemy import select
 from app.api.deps import SessaoDB, UsuarioAtual
 from app.models.analise import Analise
 from app.models.propriedade import Propriedade
+from app.models.usuario import Usuario
 from app.schemas.analise import AnaliseRequest, AnaliseResposta
 from app.services.areas_protegidas_service import AreasProtegidasService, ResultadoAreaProtegida
 from app.services.conformidade_service import (
