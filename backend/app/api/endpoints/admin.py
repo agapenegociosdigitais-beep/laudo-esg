@@ -169,15 +169,12 @@ async def listar_analises_admin(
         Analise.id,
         Propriedade.numero_car,
         Propriedade.nome_propriedade,
-        Usuario.email,
         Analise.status,
         Analise.score_esg,
         Analise.nivel_risco,
         Analise.criado_em,
     ).join(
         Propriedade, Analise.propriedade_id == Propriedade.id
-    ).outerjoin(
-        Usuario, Analise.usuario_id == Usuario.id
     )
 
     if status:
@@ -193,11 +190,11 @@ async def listar_analises_admin(
             id=row[0],
             numero_car=row[1],
             nome_propriedade=row[2],
-            usuario_email=row[3],
-            status=row[4],
-            score_esg=row[5],
-            nivel_risco=row[6],
-            criado_em=row[7],
+            usuario_email=None,  # Análise não tem usuario_id direto
+            status=row[3],
+            score_esg=row[4],
+            nivel_risco=row[5],
+            criado_em=row[6],
         )
         for row in linhas
     ]
