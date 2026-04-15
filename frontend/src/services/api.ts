@@ -5,7 +5,7 @@
 import axios, { AxiosError, AxiosInstance } from 'axios'
 import Cookies from 'js-cookie'
 
-import type { Analise, CARResultado, EstatisticasAdmin, Propriedade, Relatorio, TokenResposta, Usuario, UsuarioAdmin } from '@/types'
+import type { Analise, AnaliseAdmin, CARResultado, EstatisticasAdmin, Propriedade, Relatorio, StatusAPIsExternas, TokenResposta, Usuario, UsuarioAdmin } from '@/types'
 
 const BASE_URL =
   typeof window === 'undefined'
