@@ -2,9 +2,10 @@
 Servico de Verificacao de Embargos Ambientais - Eureka Terra
 Integracoes reais:
 - IBAMA PAMGIA (ArcGIS REST API) - embargos federais
-- SEMAS-PA LDI - embargos estaduais do Para
+- SEMAS-PA LDI - embargos estaduais do Para (com retry automático)
 - PRODES/TerraBrasilis WFS - Marco UE (pos 31/12/2020)
 """
+import asyncio
 import hashlib
 import json
 import logging
@@ -45,7 +46,7 @@ class ResultadoEmbargo:
             "verificado": self.verificado,
             "status_display": (
                 "Embargado" if self.embargo_detectado
-                else "No verificado" if not self.verificado
+                else "Sistema SEMAS Fora do Ar" if not self.verificado
                 else "Regular"
             ),
             # Campos extras do novo formato
@@ -206,11 +207,27 @@ async def verificar_embargos_ibama(
 
 # ?SEMAS-PA LDI ?embargos estaduais ?
 
+async def _verificar_embargos_semas_tentativa(car_numero: str) -> list:
+    """Uma tentativa de verificação SEMAS-PA LDI."""
+    async with httpx.AsyncClient(
+        timeout=30.0,
+        verify=False,
+        headers={**HEADERS, "Referer": "https://monitoramento.semas.pa.gov.br/ldi/"},
+        follow_redirects=True,
+    ) as client:
+        resp = await client.post(SEMAS_LDI_URL, data={"car": car_numero})
+        resp.raise_for_status()
+        return _parse_semas_html(resp.text, car_numero)
+
+
 async def verificar_embargos_semas(
     car_numero: str,
     geometria: Optional[dict] = None,
 ) -> ResultadoEmbargo:
-    """Consulta LDI (Lista de Desmatamento Ilegal) da SEMAS-PA."""
+    """
+    Consulta LDI (Lista de Desmatamento Ilegal) da SEMAS-PA com retry automático.
+    Faz até 3 tentativas com backoff exponencial (2s, 4s, 8s).
+    """
     if not car_numero.upper().startswith("PA-"):
         return ResultadoEmbargo(
             embargo_detectado=False,
@@ -218,18 +235,13 @@ async def verificar_embargos_semas(
             total_embargos=0,
             embargos=[],
             verificado=True,
-            motivo_nao_verificado="Imvel fora do Par",
+            motivo_nao_verificado="Imóvel fora do Pará",
         )
-    try:
-        async with httpx.AsyncClient(
-            timeout=30.0,
-            verify=False,
-            headers={**HEADERS, "Referer": "https://monitoramento.semas.pa.gov.br/ldi/"},
-            follow_redirects=True,
-        ) as client:
-            resp = await client.post(SEMAS_LDI_URL, data={"car": car_numero})
-            resp.raise_for_status()
-            embargos = _parse_semas_html(resp.text, car_numero)
+
+    # Retry automático com backoff exponencial
+    for tentativa in range(3):
+        try:
+            embargos = await _verificar_embargos_semas_tentativa(car_numero)
             logger.info(f"SEMAS-PA LDI: {len(embargos)} embargo(s) para {car_numero}")
             return ResultadoEmbargo(
                 embargo_detectado=len(embargos) > 0,
@@ -238,9 +250,21 @@ async def verificar_embargos_semas(
                 embargos=embargos,
                 verificado=True,
             )
-    except Exception as exc:
-        logger.warning(f"SEMAS-PA LDI indisponivel ({exc}), usando simulacao.")
-        return _simular_embargos_semas(car_numero)
+        except Exception as exc:
+            espera = 2 ** tentativa  # 2s, 4s, 8s
+            if tentativa < 2:
+                logger.warning(f"SEMAS-PA LDI tentativa {tentativa + 1}/3 falhou. Aguardando {espera}s antes de retentar... Erro: {exc}")
+                await asyncio.sleep(espera)
+            else:
+                logger.error(f"SEMAS-PA LDI falhou após 3 tentativas: {exc}")
+                return ResultadoEmbargo(
+                    embargo_detectado=False,
+                    fonte="SEMAS-PA LDI",
+                    total_embargos=0,
+                    embargos=[],
+                    verificado=False,
+                    motivo_nao_verificado="Sistema SEMAS Fora do Ar",
+                )
 
 
 def _parse_semas_html(html: str, car_numero: str) -> list:
@@ -424,7 +448,7 @@ def _simular_embargos_ibama(car_numero: str) -> ResultadoEmbargo:
         total_embargos=len(embargos),
         embargos=embargos,
         verificado=False,
-        motivo_nao_verificado="API indisponvel",
+        motivo_nao_verificado="Sistema SEMAS Fora do Ar",
     )
 
 
@@ -453,7 +477,7 @@ def _simular_embargos_semas(car_numero: str) -> ResultadoEmbargo:
         total_embargos=len(embargos),
         embargos=embargos,
         verificado=False,
-        motivo_nao_verificado="API indisponvel",
+        motivo_nao_verificado="Sistema SEMAS Fora do Ar",
     )
 
 
