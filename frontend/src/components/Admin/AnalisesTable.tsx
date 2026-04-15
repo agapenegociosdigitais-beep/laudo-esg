@@ -134,7 +134,7 @@ export default function AnalisesTable() {
                       </span>
                     </td>
                     <td className="py-3 px-4 text-center font-bold text-gray-800">
-                      {analise.score_esg !== null ? `${analise.score_esg.toFixed(1)}` : '-'}
+                      {analise.score_esg !== null && analise.score_esg !== undefined ? `${analise.score_esg.toFixed(1)}` : '-'}
                     </td>
                     <td className="py-3 px-4 text-center">
                       {analise.nivel_risco ? (
