@@ -5,7 +5,7 @@
 import axios, { AxiosError, AxiosInstance } from 'axios'
 import Cookies from 'js-cookie'
 
-import type { Analise, AnaliseAdmin, CARResultado, EstatisticasAdmin, Propriedade, Relatorio, StatusAPIsExternas, TokenResposta, Usuario, UsuarioAdmin } from '@/types'
+import type { Analise, AnaliseAdmin, AlertaAnalise, CARResultado, EstatisticasAdmin, Propriedade, Relatorio, StatusAPIsExternas, TokenResposta, Usuario, UsuarioAdmin } from '@/types'
 
 const BASE_URL =
   typeof window === 'undefined'
@@ -194,6 +194,11 @@ export const adminService = {
 
   async verificarStatusAPIs(): Promise<StatusAPIsExternas> {
     const { data } = await api.get<StatusAPIsExternas>('/admin/apis/status')
+    return data
+  },
+
+  async listarAlertas(): Promise<AlertaAnalise[]> {
+    const { data } = await api.get<AlertaAnalise[]>('/admin/alertas')
     return data
   },
 }

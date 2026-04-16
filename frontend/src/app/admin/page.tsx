@@ -8,6 +8,7 @@ import type { EstatisticasAdmin, UsuarioAdmin } from '@/types'
 import AdminStats from '@/components/Admin/AdminStats'
 import UsuariosTable from '@/components/Admin/UsuariosTable'
 import ApiStatusPanel from '@/components/Admin/ApiStatusPanel'
+import AlertasPanel from '@/components/Admin/AlertasPanel'
 import AnalisesTable from '@/components/Admin/AnalisesTable'
 
 export default function AdminPage() {
@@ -119,6 +120,12 @@ export default function AdminPage() {
             onEditarLimite={handleEditarLimite}
             carregando={carregando}
           />
+        </div>
+
+        {/* Alertas - Propriedades Críticas */}
+        <div className="mt-8">
+          <h2 className="text-2xl font-bold text-red-700 mb-4">⚠️ Alertas — Propriedades Críticas</h2>
+          <AlertasPanel />
         </div>
 
         {/* Status das APIs */}

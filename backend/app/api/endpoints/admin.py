@@ -6,13 +6,14 @@ from typing import Annotated, Optional
 
 import httpx
 from fastapi import APIRouter, HTTPException, Query, status
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 
 from app.api.deps import AdminAtual, SessaoDB
 from app.models.usuario import Usuario
 from app.models.analise import Analise
 from app.models.propriedade import Propriedade
 from app.schemas.admin import (
+    AlertaAnalise,
     AnaliseAdminResposta,
     AtualizarLimiteRequest,
     EstatisticasAdmin,
@@ -236,3 +237,57 @@ async def verificar_status_apis(admin: AdminAtual):
         semas=StatusAPI(online=semas_online, latencia_ms=semas_latencia, ultima_verificacao=agora),
         prodes=StatusAPI(online=prodes_online, latencia_ms=prodes_latencia, ultima_verificacao=agora),
     )
+
+
+@router.get("/alertas", response_model=list[AlertaAnalise])
+async def listar_alertas(db: SessaoDB, admin: AdminAtual):
+    """Retorna análises concluídas com embargo, desmatamento ou risco alto/crítico."""
+    resultado = await db.execute(
+        select(
+            Analise.id,
+            Analise.status,
+            Analise.score_esg,
+            Analise.nivel_risco,
+            Analise.criado_em,
+            Analise.embargo_ibama,
+            Analise.embargo_semas,
+            Analise.desmatamento_detectado,
+            Analise.area_desmatada_ha,
+            Propriedade.numero_car,
+            Propriedade.nome_propriedade,
+        )
+        .join(Propriedade, Analise.propriedade_id == Propriedade.id)
+        .where(
+            Analise.status == "concluido",
+            or_(
+                Analise.desmatamento_detectado == True,
+                Analise.nivel_risco.in_(["CRÍTICO", "ALTO"]),
+                Analise.embargo_ibama["embargado"].as_boolean() == True,
+                Analise.embargo_semas["embargado"].as_boolean() == True,
+            )
+        )
+        .order_by(Analise.nivel_risco.desc(), Analise.criado_em.desc())
+        .limit(100)
+    )
+
+    linhas = resultado.fetchall()
+    alertas = []
+    for row in linhas:
+        embargo_ibama = row[5] or {}
+        embargo_semas = row[6] or {}
+        alertas.append(
+            AlertaAnalise(
+                id=row[0],
+                status=row[1],
+                score_esg=row[2],
+                nivel_risco=row[3],
+                criado_em=row[4],
+                tem_embargo_ibama=embargo_ibama.get("embargado") is True,
+                tem_embargo_semas=embargo_semas.get("embargado") is True,
+                tem_desmatamento=row[7] or False,
+                area_desmatada_ha=row[8],
+                numero_car=row[9],
+                nome_propriedade=row[10],
+            )
+        )
+    return alertas

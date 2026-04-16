@@ -3,7 +3,7 @@ import uuid
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from app.schemas.usuario import UsuarioResposta
 
@@ -61,3 +61,20 @@ class StatusAPIsExternas(BaseModel):
     ibama: StatusAPI
     semas: StatusAPI
     prodes: StatusAPI
+
+
+class AlertaAnalise(BaseModel):
+    """Análise com alertas críticos (embargo, desmatamento, risco alto)."""
+    id: uuid.UUID
+    numero_car: str
+    nome_propriedade: Optional[str] = None
+    status: str
+    score_esg: Optional[float] = None
+    nivel_risco: Optional[str] = None
+    criado_em: datetime
+    tem_embargo_ibama: bool
+    tem_embargo_semas: bool
+    tem_desmatamento: bool
+    area_desmatada_ha: Optional[float] = None
+
+    model_config = ConfigDict(from_attributes=True)

@@ -266,3 +266,17 @@ export interface StatusAPIsExternas {
   semas: StatusAPI
   prodes: StatusAPI
 }
+
+export interface AlertaAnalise {
+  id: string
+  numero_car: string
+  nome_propriedade?: string
+  status: string
+  score_esg?: number
+  nivel_risco?: string
+  criado_em: string
+  tem_embargo_ibama: boolean
+  tem_embargo_semas: boolean
+  tem_desmatamento: boolean
+  area_desmatada_ha?: number
+}
