@@ -280,3 +280,56 @@ export interface AlertaAnalise {
   tem_desmatamento: boolean
   area_desmatada_ha?: number
 }
+
+export interface CARProdes {
+  numero_car: string
+  municipio?: string
+  area_total_ha?: number
+  area_desmatada_ha?: number
+  percentual_afetado?: number
+  ano_deteccao?: number | string
+  bioma?: string
+  usuario_email?: string
+  criado_em: string
+}
+
+export interface CAREmbargoSemas {
+  numero_car: string
+  municipio?: string
+  numero_tad?: string
+  processo?: string
+  data_embargo?: string
+  situacao?: string
+  area_embargada_ha?: number
+  usuario_email?: string
+  criado_em: string
+}
+
+export interface CarMultiploProblema {
+  numero_car: string
+  municipio?: string
+  nivel_risco?: string
+  score_esg?: number
+  flags: string[]
+}
+
+export interface EvolucaoMensal {
+  mes: string
+  prodes: number
+  embargo_semas: number
+  desmatamento: number
+}
+
+export interface DistribuicaoTipo {
+  tipo: string
+  total: number
+}
+
+export interface ResumoCARsProblematicos {
+  total_prodes: number
+  total_embargo_semas: number
+  total_desmatamento: number
+  multiplos_problemas: CarMultiploProblema[]
+  evolucao_mensal: EvolucaoMensal[]
+  distribuicao_tipo: DistribuicaoTipo[]
+}

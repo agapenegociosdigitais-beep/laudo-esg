@@ -5,7 +5,7 @@
 import axios, { AxiosError, AxiosInstance } from 'axios'
 import Cookies from 'js-cookie'
 
-import type { Analise, AnaliseAdmin, AlertaAnalise, CARResultado, EstatisticasAdmin, Propriedade, Relatorio, StatusAPIsExternas, TokenResposta, Usuario, UsuarioAdmin } from '@/types'
+import type { Analise, AnaliseAdmin, AlertaAnalise, CARProdes, CAREmbargoSemas, CARResultado, EstatisticasAdmin, Propriedade, Relatorio, ResumoCARsProblematicos, StatusAPIsExternas, TokenResposta, Usuario, UsuarioAdmin } from '@/types'
 
 const BASE_URL =
   typeof window === 'undefined'
@@ -199,6 +199,21 @@ export const adminService = {
 
   async listarAlertas(): Promise<AlertaAnalise[]> {
     const { data } = await api.get<AlertaAnalise[]>('/admin/alertas')
+    return data
+  },
+
+  async listarCarsProdes(): Promise<CARProdes[]> {
+    const { data } = await api.get<CARProdes[]>('/admin/cars/prodes')
+    return data
+  },
+
+  async listarCarsEmbargoSemas(): Promise<CAREmbargoSemas[]> {
+    const { data } = await api.get<CAREmbargoSemas[]>('/admin/cars/embargo-semas')
+    return data
+  },
+
+  async obterResumoCars(): Promise<ResumoCARsProblematicos> {
+    const { data } = await api.get<ResumoCARsProblematicos>('/admin/cars/resumo')
     return data
   },
 }

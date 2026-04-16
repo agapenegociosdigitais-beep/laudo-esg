@@ -78,3 +78,62 @@ class AlertaAnalise(BaseModel):
     area_desmatada_ha: Optional[float] = None
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class CARProdes(BaseModel):
+    """CAR com desmatamento detectado (PRODES)."""
+    numero_car: str
+    municipio: Optional[str] = None
+    area_total_ha: Optional[float] = None
+    area_desmatada_ha: Optional[float] = None
+    percentual_afetado: Optional[float] = None
+    ano_deteccao: Optional[int | str] = None
+    bioma: Optional[str] = None
+    usuario_email: Optional[str] = None
+    criado_em: datetime
+
+
+class CAREmbargoSemas(BaseModel):
+    """CAR com embargo ativo na SEMAS."""
+    numero_car: str
+    municipio: Optional[str] = None
+    numero_tad: Optional[str] = None
+    processo: Optional[str] = None
+    data_embargo: Optional[str] = None
+    situacao: Optional[str] = None
+    area_embargada_ha: Optional[float] = None
+    usuario_email: Optional[str] = None
+    criado_em: datetime
+
+
+class CarMultiploProblema(BaseModel):
+    """CAR que aparece em 2+ categorias de problemas."""
+    numero_car: str
+    municipio: Optional[str] = None
+    nivel_risco: Optional[str] = None
+    score_esg: Optional[float] = None
+    flags: list[str]
+
+
+class EvolucaoMensal(BaseModel):
+    """Evolução de CARs problemáticos por mês."""
+    mes: str
+    prodes: int = 0
+    embargo_semas: int = 0
+    desmatamento: int = 0
+
+
+class DistribuicaoTipo(BaseModel):
+    """Distribuição de CARs por tipo de problema."""
+    tipo: str
+    total: int
+
+
+class ResumoCARsProblematicos(BaseModel):
+    """Resumo consolidado de CARs com problemas."""
+    total_prodes: int = 0
+    total_embargo_semas: int = 0
+    total_desmatamento: int = 0
+    multiplos_problemas: list[CarMultiploProblema] = []
+    evolucao_mensal: list[EvolucaoMensal] = []
+    distribuicao_tipo: list[DistribuicaoTipo] = []
