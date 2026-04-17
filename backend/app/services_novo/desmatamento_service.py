@@ -15,6 +15,8 @@ from datetime import date
 from typing import Any, Dict
 
 import httpx
+from shapely.geometry import shape
+from shapely.ops import unary_union
 
 from app.core.config import get_settings
 from app.schemas.analise import ResultadoConformidade, ResultadoDesmatamento
@@ -132,30 +134,75 @@ class DesmatamentoService:
                     detalhes={"total_registros": 0, "bioma": bioma},
                 )
 
+            # Constrói geometria CAR para interseção real
+            try:
+                car_geom = shape(geojson)
+            except Exception as e:
+                logger.warning(f"Erro parsing geometria CAR para interseção: {e}")
+                car_geom = None
+
             area_total = 0.0
             anos = []
             registros = []
+            registros_por_ano = {}
+
             for f in feats:
                 props = f.get("properties", {})
-                # Garante que só contabilizamos polígonos de desmatamento real
                 classe = props.get("main_class", props.get("classname", props.get("classe", "")))
                 if classe and "desmatamento" not in classe.lower():
                     continue
-                area = float(props.get("areakm", props.get("area_km", props.get("area", 0))) or 0)
-                area_ha = round(area * 100, 4)  # km2 para ha
-                ano = props.get("year", props.get("ano", props.get("view_date", "")))
-                area_total += area_ha
-                if ano:
-                    anos.append(str(ano))
-                registros.append({"area_ha": area_ha, "ano": ano, "classe": classe})
 
-            logger.info(f"PRODES: {len(feats)} registros, {area_total:.2f} ha para {bioma}")
+                anno = props.get("year", props.get("ano", props.get("view_date", "")))
+
+                # Calcula interseção real com geometria CAR
+                area_ha = 0.0
+                percentual_dentro = 100.0
+
+                if car_geom:
+                    try:
+                        prodes_geom = shape(f.get("geometry", {}))
+                        intersecao = car_geom.intersection(prodes_geom)
+                        # Converte m² para ha (1 ha = 10000 m²)
+                        area_intersecao_m2 = intersecao.area
+                        area_ha = round(area_intersecao_m2 / 10000, 4)
+                        area_prodes_ha = round(prodes_geom.area / 10000, 4)
+                        if area_prodes_ha > 0:
+                            percentual_dentro = round((area_ha / area_prodes_ha) * 100, 2)
+                    except Exception as e:
+                        logger.debug(f"Erro calculando interseção: {e}, usando área total")
+                        area = float(props.get("areakm", props.get("area_km", props.get("area", 0))) or 0)
+                        area_ha = round(area * 100, 4)
+                else:
+                    # Fallback: usa área bruta se não conseguir geometria CAR
+                    area = float(props.get("areakm", props.get("area_km", props.get("area", 0))) or 0)
+                    area_ha = round(area * 100, 4)
+
+                area_total += area_ha
+                if anno:
+                    anos.append(str(anno))
+                    registros_por_ano[str(anno)] = registros_por_ano.get(str(anno), 0) + area_ha
+
+                registros.append({
+                    "area_ha": area_ha,
+                    "ano": anno,
+                    "classe": classe,
+                    "percentual_dentro_car": percentual_dentro
+                })
+
+            logger.info(f"PRODES (interseção real): {len(feats)} registros, {area_total:.2f} ha para {bioma}")
+
             return ResultadoDesmatamento(
                 desmatamento_detectado=area_total > 0,
                 area_desmatada_ha=round(area_total, 2),
                 periodo_referencia=f"2008-2025 (PRODES anos: {chr(44).join(set(anos))})" if anos else "2008-2025 (PRODES)",
-                fonte="PRODES/INPE TerraBrasilis (real)",
-                detalhes={"total_registros": len(feats), "bioma": bioma, "registros": registros[:5]},
+                fonte="PRODES/INPE TerraBrasilis (interseção real com CAR)",
+                detalhes={
+                    "total_registros": len(feats),
+                    "bioma": bioma,
+                    "registros": registros[:10],
+                    "registros_por_ano": registros_por_ano,
+                    "metodo": "intersecao_espacial"
+                },
             )
         except Exception as e:
             logger.warning(f"TerraBrasilis WFS erro: {e}")
