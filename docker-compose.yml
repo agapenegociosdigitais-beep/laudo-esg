@@ -73,9 +73,9 @@ services:
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./certs:/etc/nginx/certs:ro
-    depends_on:
-      - backend
     restart: unless-stopped
+    networks:
+      - default
 
 volumes:
   postgres_data:
