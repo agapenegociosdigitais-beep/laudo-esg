@@ -37,7 +37,8 @@ export function ClientesTable() {
 
   const handleAction = async (cliente_id: string, action: 'aprovar' | 'bloquear' | 'suspender') => {
     try {
-      await adminService[action + 'Cliente'](cliente_id);
+      const key = (action + 'Cliente') as keyof typeof adminService;
+      await adminService[key](cliente_id);
       loadClientes();
     } catch (error) {
       console.error(`Erro ao ${action} cliente:`, error);
