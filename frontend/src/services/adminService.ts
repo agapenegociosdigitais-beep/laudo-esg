@@ -83,38 +83,13 @@ export const adminService = {
     return res.data;
   },
 
-  // CLIENTES
-  listarClientes: async (page = 1, pageSize = 20, status?: string, search?: string) => {
-    const res = await apiClient.get('/admin/clientes', {
-      params: { page, page_size: pageSize, status, search },
-    });
-    return res.data;
-  },
-
   getClientePerfil: async (id: string) => {
     const res = await apiClient.get(`/admin/clientes/${id}`);
     return res.data;
   },
 
-  aprovarCliente: async (id: string) => {
-    const res = await apiClient.patch(`/admin/clientes/${id}/aprovar`);
-    return res.data;
-  },
-
   desaprovarCliente: async (id: string) => {
     const res = await apiClient.patch(`/admin/clientes/${id}/desaprovar`);
-    return res.data;
-  },
-
-  suspenderCliente: async (id: string) => {
-    const res = await apiClient.patch(`/admin/clientes/${id}/suspender`);
-    return res.data;
-  },
-
-  editarLimite: async (id: string, novoLimite: number | null) => {
-    const res = await apiClient.patch(`/admin/clientes/${id}/limite`, {
-      novo_limite: novoLimite,
-    });
     return res.data;
   },
 
