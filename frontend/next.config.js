@@ -7,6 +7,10 @@ const nextConfig = {
       { protocol: 'https', hostname: '*.tile.openstreetmap.org' },
     ],
   },
+  webpack: (config) => {
+    config.optimization.minimize = false;
+    return config;
+  },
 }
 
 module.exports = nextConfig
