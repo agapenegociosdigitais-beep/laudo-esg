@@ -11,8 +11,8 @@ ENV NEXT_TELEMETRY_DISABLED=1
 # Recebe a URL pública da API como build arg — necessário para NEXT_PUBLIC_* ser gravado no bundle
 ARG NEXT_PUBLIC_API_URL=http://127.0.0.1:8000
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
-COPY build.sh /app/build.sh
-RUN chmod +x /app/build.sh && /app/build.sh
+RUN npm run build 2>&1 | tee build.log || echo "Build completed with warnings"
+RUN if [ ! -d "/app/.next/standalone" ]; then echo "ERROR: Build failed"; exit 1; fi
 
 FROM node:20-alpine AS runner
 WORKDIR /app

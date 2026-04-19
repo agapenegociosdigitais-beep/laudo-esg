@@ -7,7 +7,6 @@ const nextConfig = {
       { protocol: 'https', hostname: '*.tile.openstreetmap.org' },
     ],
   },
-  staticPageGenerationTimeout: 1000,
 }
 
 module.exports = nextConfig
