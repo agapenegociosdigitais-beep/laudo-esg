@@ -2,15 +2,13 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAdminAuth } from '@/contexts/AdminAuthContext';
 
 export function AdminHeader() {
   const router = useRouter();
-  const { logout } = useAdminAuth();
   const [open, setOpen] = useState(false);
 
   const handleLogout = () => {
-    logout();
+    localStorage.removeItem('admin_token');
     router.push('/admin/login');
   };
 
