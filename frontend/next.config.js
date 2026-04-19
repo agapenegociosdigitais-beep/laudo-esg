@@ -8,9 +8,6 @@ const nextConfig = {
     ],
   },
   staticPageGenerationTimeout: 1000,
-  experimental: {
-    isrMemoryCacheSize: 0,
-  },
 }
 
 module.exports = nextConfig
