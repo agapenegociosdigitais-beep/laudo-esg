@@ -14,7 +14,7 @@ fastapi-cache2==0.2.1
 # Auth
 python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
-PyJWT==2.8.1
+PyJWT==2.12.1
 pydantic-settings==2.2.1
 pydantic[email]==2.7.1
 # Geospatial
