@@ -227,3 +227,22 @@ class DashboardGraficos(BaseModel):
     dados: dict
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class PesquisasPorDia(BaseModel):
+    """Pesquisas por dia para gráfico."""
+    data: str
+    total: int
+
+
+class CARsPorStatus(BaseModel):
+    """CARs agrupados por status."""
+    status: str
+    total: int
+
+
+class TopCliente(BaseModel):
+    """Cliente com mais pesquisas."""
+    email: str
+    nome: str
+    total_pesquisas: int
