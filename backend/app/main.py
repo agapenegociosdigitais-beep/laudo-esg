@@ -65,13 +65,13 @@ app.add_middleware(
 
 # ── Rotas ─────────────────────────────────────────────────────────────────────
 
-from app.api.endpoints import auth, propriedades, analises, relatorios, admin  # noqa: E402
+from app.api.endpoints import auth, propriedades, analises, relatorios, admin_new  # noqa: E402
 
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["Autenticação"])
 app.include_router(propriedades.router, prefix="/api/v1/propriedades", tags=["Propriedades"])
 app.include_router(analises.router, prefix="/api/v1/analises", tags=["Análises"])
 app.include_router(relatorios.router, prefix="/api/v1/relatorios", tags=["Relatórios"])
-app.include_router(admin.router, prefix="/api/v1/admin", tags=["Administração"])
+app.include_router(admin_new.router, prefix="/api/v1", tags=["Administração"])
 
 
 # ── Endpoints utilitários ──────────────────────────────────────────────────────
