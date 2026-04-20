@@ -1,9 +1,9 @@
 import axios from 'axios';
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
 
 const apiClient = axios.create({
-  baseURL: `${BASE_URL}/api/v1`,
+  baseURL: BASE_URL,
   timeout: 30000,
 });
 
