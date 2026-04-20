@@ -137,3 +137,93 @@ class ResumoCARsProblematicos(BaseModel):
     multiplos_problemas: list[CarMultiploProblema] = []
     evolucao_mensal: list[EvolucaoMensal] = []
     distribuicao_tipo: list[DistribuicaoTipo] = []
+
+
+class AdminLoginRequest(BaseModel):
+    """Request para login do admin."""
+    email: str
+    password: str
+
+
+class AdminResposta(BaseModel):
+    """Resposta com dados do admin."""
+    id: uuid.UUID
+    email: str
+    role: str
+    criado_em: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class AdminTokenResposta(BaseModel):
+    """Resposta com token de autenticação."""
+    access_token: str
+    token_type: str
+    admin: AdminResposta
+
+
+class ClienteListaItem(BaseModel):
+    """Cliente na lista do admin."""
+    id: uuid.UUID
+    nome: str
+    email: str
+    status: str
+    criado_em: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ClientePerfil(BaseModel):
+    """Perfil completo do cliente."""
+    id: uuid.UUID
+    nome: str
+    email: str
+    status: str
+    criado_em: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class AprovarClienteRequest(BaseModel):
+    """Request para aprovar cliente."""
+    pass
+
+
+class EditarLimiteRequest(BaseModel):
+    """Request para editar limite do cliente."""
+    novo_limite: Optional[int] = None
+
+
+class NotificacaoResposta(BaseModel):
+    """Notificação do admin."""
+    id: uuid.UUID
+    titulo: str
+    mensagem: str
+    lida: bool
+    criado_em: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class AdminActionResposta(BaseModel):
+    """Resposta de ação do admin."""
+    sucesso: bool
+    mensagem: str
+
+
+class OverviewMetricas(BaseModel):
+    """Métricas de visão geral do dashboard."""
+    total_usuarios: int
+    usuarios_ativos_hoje: int
+    total_analises: int
+    analises_hoje: int
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class DashboardGraficos(BaseModel):
+    """Dados para gráficos do dashboard."""
+    titulo: str
+    dados: dict
+
+    model_config = ConfigDict(from_attributes=True)
