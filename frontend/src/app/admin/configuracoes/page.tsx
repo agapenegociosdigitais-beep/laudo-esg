@@ -3,11 +3,11 @@
 export const dynamic = 'force-dynamic';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { adminService } from '@/services/adminService';
-import { useAdminAuth } from '@/contexts/AdminAuthContext';
 
 export default function ConfiguracoesPage() {
-  const { logout } = useAdminAuth();
+  const router = useRouter();
   const [senhaAtual, setSenhaAtual] = useState('');
   const [senhaNova, setSenhaNova] = useState('');
   const [senhaConfirm, setSenhaConfirm] = useState('');
@@ -39,7 +39,8 @@ export default function ConfiguracoesPage() {
       setSenhaNova('');
       setSenhaConfirm('');
       setTimeout(() => {
-        logout();
+        localStorage.removeItem('admin_token');
+        router.push('/admin/login');
       }, 2000);
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Erro ao alterar senha');
@@ -149,7 +150,8 @@ export default function ConfiguracoesPage() {
           <button
             onClick={() => {
               if (confirm('Tem certeza que deseja fazer logout?')) {
-                logout();
+                localStorage.removeItem('admin_token');
+                router.push('/admin/login');
               }
             }}
             className="px-6 py-2 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700"
