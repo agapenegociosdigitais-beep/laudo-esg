@@ -32,6 +32,11 @@ export const adminService = {
   // AUTENTICAÇÃO
   login: async (email: string, password: string) => {
     const res = await apiClient.post('/admin/login', { email, password });
+    if (res.data.access_token) {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('admin_token', res.data.access_token);
+      }
+    }
     return res.data;
   },
 
@@ -123,5 +128,19 @@ export const adminService = {
   getInfoSistema: async () => {
     const res = await apiClient.get('/admin/config/info');
     return res.data;
+  },
+
+  // UTILITÁRIOS
+  getToken: () => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('admin_token');
+    }
+    return null;
+  },
+
+  clearToken: () => {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('admin_token');
+    }
   },
 };
