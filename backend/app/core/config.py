@@ -81,6 +81,10 @@ class Settings(BaseSettings):
     # ?Relat�rios PDF ?
     REPORTS_DIR: str = "/app/reports"
 
+    # ?Admin ?
+    ADMIN_EMAIL: str = "admin@eureka-terra.com"
+    ADMIN_PASSWORD_HASH: str = ""
+
     @property
     def is_producao(self) -> bool:
         """Retorna True se o ambiente for produ��o."""
