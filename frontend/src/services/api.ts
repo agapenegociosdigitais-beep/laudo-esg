@@ -7,10 +7,13 @@ import Cookies from 'js-cookie'
 
 import type { Analise, AnaliseAdmin, AlertaAnalise, CARProdes, CAREmbargoSemas, CARResultado, EstatisticasAdmin, Propriedade, Relatorio, ResumoCARsProblematicos, StatusAPIsExternas, TokenResposta, Usuario, UsuarioAdmin } from '@/types'
 
-const BASE_URL =
+const _RAW_BASE =
   typeof window === 'undefined'
     ? (process.env.INTERNAL_API_URL || 'http://backend:8000')
     : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000')
+
+// Normalize base: remove trailing slashes and strip any existing '/api/v1'
+const BASE_URL = _RAW_BASE.replace(/\/+$/g, '').replace(/\/api\/v1$/i, '')
 
 // Instância base do axios
 const api: AxiosInstance = axios.create({
