@@ -131,11 +131,41 @@ async def verificar_embargos_ibama(
     geometria: Optional[dict] = None,
     estado: str = "",
 ) -> ResultadoEmbargo:
-    """
-    Consulta embargos do IBAMA via PAMGIA ArcGIS REST API.
-    URL: pamgia.ibama.gov.br/geoservicos/rest/services/GI_AREASEMBARGADAS/MapServer/0/query
-    Campos: NUM_TAD, SIT_TAD, DT_TAD, MUN_EMBAR, UF_EMBAR, AREA_HA, AREA_INT_HA, AREA_INT_PCT
-    """
+    # ── 1. Cache local (unificado: IBAMA+SEMAS+ICMBIO) ────────────────────
+    if geometria:
+        try:
+            from app.services.cache_local_service import consultar_embargos_local
+            local = await consultar_embargos_local(geometria)
+            if local:
+                embargos = [
+                    {
+                        "numero_tad": r.get("num_tad", ""),
+                        "processo": "",
+                        "data_embargo": str(r.get("data_embargo", "")),
+                        "data_expiracao": None,
+                        "area_ha": float(r.get("area_ha") or 0),
+                        "area_intersecao_ha": round(float(r.get("area_intersecao_ha") or 0), 2),
+                        "percentual_intersecao": 0.0,
+                        "status": "ativo",
+                        "municipio": "",
+                        "uf": "",
+                        "descricao": r.get("descricao", "") or f"Embargo {r.get('orgao', '')}",
+                        "fonte": f"{r.get('orgao', 'IBAMA')} (cache local)",
+                    }
+                    for r in local
+                ]
+                logger.info(f"Embargos cache: {len(embargos)} para {car_numero}")
+                return ResultadoEmbargo(
+                    embargo_detectado=True,
+                    fonte="GeoServer Nacional (cache)",
+                    total_embargos=len(embargos),
+                    embargos=embargos,
+                    verificado=True,
+                )
+        except Exception as e:
+            logger.warning(f"Cache embargos indisponivel: {e}")
+
+    # ── 2. API ao vivo ──────────────────────────────────────────────────────
     try:
         async with httpx.AsyncClient(timeout=30.0, verify=False, headers=HEADERS) as client:
             params = {
@@ -200,8 +230,8 @@ async def verificar_embargos_ibama(
             )
 
     except Exception as exc:
-        logger.warning(f"IBAMA PAMGIA indisponivel ({exc}), usando simulacao.")
-        return _simular_embargos_ibama(car_numero)
+        logger.error(f"IBAMA PAMGIA indisponível: {exc}")
+        raise Exception(f"IBAMA PAMGIA indisponível: {exc}")
 
 
 # ?SEMAS-PA LDI ?embargos estaduais ?
@@ -220,6 +250,44 @@ async def verificar_embargos_semas(
             verificado=True,
             motivo_nao_verificado="Im�vel fora do Par�",
         )
+
+    # ── 1. Cache local (unificado) ──────────────────────────────────────────
+    if geometria:
+        try:
+            from app.services.cache_local_service import consultar_embargos_local
+            local = await consultar_embargos_local(geometria)
+            # Filtra apenas SEMAS
+            semas = [r for r in local if r.get("orgao", "").upper() == "SEMAS"]
+            if semas:
+                embargos = [
+                    {
+                        "numero_tad": r.get("num_tad", ""),
+                        "processo": "",
+                        "data_embargo": str(r.get("data_embargo", "")),
+                        "data_expiracao": None,
+                        "area_ha": float(r.get("area_ha") or 0),
+                        "area_intersecao_ha": round(float(r.get("area_intersecao_ha") or 0), 2),
+                        "percentual_intersecao": 0.0,
+                        "status": "ativo",
+                        "municipio": "",
+                        "uf": "PA",
+                        "descricao": r.get("descricao", "") or f"Embargo SEMAS-PA",
+                        "fonte": "SEMAS-PA (cache local)",
+                    }
+                    for r in semas
+                ]
+                logger.info(f"SEMAS cache: {len(embargos)} embargo(s) para {car_numero}")
+                return ResultadoEmbargo(
+                    embargo_detectado=True,
+                    fonte="SEMAS-PA (cache local)",
+                    total_embargos=len(embargos),
+                    embargos=embargos,
+                    verificado=True,
+                )
+        except Exception as e:
+            logger.warning(f"Cache SEMAS indisponivel: {e}")
+
+    # ── 2. API ao vivo ──────────────────────────────────────────────────────
     try:
         async with httpx.AsyncClient(
             timeout=30.0,
@@ -241,8 +309,8 @@ async def verificar_embargos_semas(
                 verificado=True,
             )
     except Exception as exc:
-        logger.warning(f"SEMAS-PA LDI indisponivel ({exc}), usando simulacao.")
-        return _simular_embargos_semas(car_numero)
+        logger.error(f"SEMAS-PA LDI indisponível: {exc}")
+        raise Exception(f"SEMAS-PA LDI indisponível: {exc}")
 
 
 def _parse_semas_html(html: str, car_numero: str) -> list:
@@ -305,6 +373,40 @@ async def verificar_marco_ue_prodes(
 
     uf = (estado or car_numero[:2]).upper()
 
+    # ── 0. Cache local ──────────────────────────────────────────────────────
+    if geometria:
+        try:
+            from app.services.cache_local_service import consultar_prodes_local
+            local = await consultar_prodes_local(geometria)
+            pos_2020 = [r for r in local if r.get("year") and int(r["year"]) >= 2021]
+            if pos_2020 or local:
+                desmatamento_pos_2020 = [
+                    {
+                        "ano": r.get("year"),
+                        "area_ha": round(float(r.get("area_intersecao_ha") or 0), 2),
+                        "area_km2": round(float(r.get("area_intersecao_ha") or 0) / 100, 4),
+                        "uf": r.get("estado", ""),
+                        "data": "",
+                        "camada": r.get("camada", "cache_prodes"),
+                        "fonte": "PRODES/INPE (cache local)",
+                    }
+                    for r in pos_2020
+                ]
+                area_total = sum(d["area_ha"] for d in desmatamento_pos_2020)
+                return {
+                    "em_conformidade": len(desmatamento_pos_2020) == 0,
+                    "desmatamento_detectado": len(desmatamento_pos_2020) > 0,
+                    "registros_pos_2020": desmatamento_pos_2020,
+                    "total_registros": len(desmatamento_pos_2020),
+                    "area_total_ha": area_total,
+                    "marco_referencia": "31/12/2020",
+                    "regulacao": "EUDR (EU Deforestation Regulation)",
+                    "verificado": True,
+                    "fonte": "PRODES/INPE (cache local)",
+                }
+        except Exception as e:
+            logger.warning(f"Cache PRODES (Marco UE) indisponível: {e}")
+
     # Escolhe camadas por bioma ?usa Legal Amazon + Cerrado se necess�rio
     camadas: list[str] = []
     if uf in UFS_AMAZONIA:
@@ -336,19 +438,14 @@ async def verificar_marco_ue_prodes(
                 if geometria:
                     bbox = _bbox_do_geojson(geometria)
                     if bbox:
-                        cql = (
-                            f"BBOX(geom,{bbox[0]},{bbox[1]},{bbox[2]},{bbox[3]},'EPSG:4326')"
-                            f" AND year>=2021 AND main_class='desmatamento'"
-                        )
-                        params["CQL_FILTER"] = cql
-                    else:
                         params["CQL_FILTER"] = (
-                            f"state='{uf}' AND year>=2021 AND main_class='desmatamento'"
+                            f"BBOX(geom,{bbox[0]},{bbox[1]},{bbox[2]},{bbox[3]},'EPSG:4326')"
+                            f" AND year>=2021"
                         )
+                    else:
+                        params["CQL_FILTER"] = f"state='{uf}' AND year>=2021"
                 else:
-                    params["CQL_FILTER"] = (
-                        f"state='{uf}' AND year>=2021 AND main_class='desmatamento'"
-                    )
+                    params["CQL_FILTER"] = f"state='{uf}' AND year>=2021"
 
                 try:
                     resp = await client.get(PRODES_WFS_BASE, params=params, timeout=20.0)
@@ -356,7 +453,8 @@ async def verificar_marco_ue_prodes(
                     data = resp.json()
                     for feat in data.get("features", []):
                         props = feat.get("properties", {})
-                        if props.get("main_class") != "desmatamento":
+                        classe = (props.get("main_class") or props.get("classname") or "").lower()
+                        if classe and "desmatamento" not in classe:
                             continue
                         area_km2 = float(props.get("area_km") or 0)
                         desmatamento_pos_2020.append({
@@ -392,95 +490,7 @@ async def verificar_marco_ue_prodes(
             }
 
     except Exception as exc:
-        logger.warning(f"PRODES API indispon�vel ({exc}), usando simula��o.")
-        return _simular_marco_ue(car_numero)
+        logger.error(f"PRODES Marco UE indisponível: {exc}")
+        raise Exception(f"PRODES Marco UE indisponível: {exc}")
 
 
-# ?Simula��es determin�sticas (fallback) ?
-
-def _simular_embargos_ibama(car_numero: str) -> ResultadoEmbargo:
-    h = _hash_car(car_numero)
-    uf = car_numero[:2].upper()
-    amazonia = uf in {"AM", "PA", "MT", "RO", "TO", "MA", "AP", "AC", "RR"}
-    tem = (h % 100) < (30 if amazonia else 12)
-    embargos = []
-    if tem:
-        for i in range((h % 2) + 1):
-            embargos.append({
-                "numero_tad": f"{800 + i + h % 200}/2024",
-                "processo": f"02001.{h % 999999:06d}/{2020 + i % 5}-{h % 99:02d}",
-                "data_embargo": f"{(h % 28) + 1:02d}/{(h % 11) + 1:02d}/{2020 + (h % 4)}",
-                "data_expiracao": None,
-                "area_ha": round((h % 500) + 50.0, 2),
-                "area_intersecao_ha": round((h % 100) + 10.0, 2),
-                "percentual_intersecao": round((h % 100) * 0.8, 1),
-                "status": "ativo",
-                "municipio": "Simulado",
-                "uf": uf,
-                "descricao": "[SIMULADO] Embargo IBAMA",
-                "fonte": "IBAMA (simulado)",
-            })
-    return ResultadoEmbargo(
-        embargo_detectado=tem,
-        fonte="IBAMA PAMGIA (simulado)",
-        total_embargos=len(embargos),
-        embargos=embargos,
-        verificado=False,
-        motivo_nao_verificado="API indispon�vel",
-    )
-
-
-def _simular_embargos_semas(car_numero: str) -> ResultadoEmbargo:
-    h = _hash_car(car_numero)
-    tem = (h % 100) < 25
-    embargos = []
-    if tem:
-        embargos.append({
-            "numero_tad": f"LDI-{h % 9999:04d}/2024",
-            "processo": f"PA-{h % 99999:05d}",
-            "data_embargo": f"{(h % 28) + 1:02d}/{(h % 11) + 1:02d}/2024",
-            "data_expiracao": None,
-            "area_ha": round((h % 300) + 30.0, 2),
-            "area_intersecao_ha": round((h % 80) + 5.0, 2),
-            "percentual_intersecao": round((h % 100) * 0.6, 1),
-            "status": "ativo",
-            "municipio": "Simulado-PA",
-            "uf": "PA",
-            "descricao": "[SIMULADO] LDI SEMAS-PA",
-            "fonte": "SEMAS-PA (simulado)",
-        })
-    return ResultadoEmbargo(
-        embargo_detectado=tem,
-        fonte="SEMAS-PA LDI (simulado)",
-        total_embargos=len(embargos),
-        embargos=embargos,
-        verificado=False,
-        motivo_nao_verificado="API indispon�vel",
-    )
-
-
-def _simular_marco_ue(car_numero: str) -> dict:
-    h = _hash_car(car_numero)
-    uf = car_numero[:2].upper()
-    amazonia = uf in {"AM", "PA", "MT", "RO", "TO", "MA", "AP", "AC", "RR"}
-    tem = (h % 100) < (35 if amazonia else 10)
-    registros = []
-    if tem:
-        registros.append({
-            "ano": 2021 + (h % 3),
-            "area_ha": round((h % 200) + 10.0, 2),
-            "municipio": "Simulado",
-            "uf": uf,
-            "fonte": "PRODES/INPE (simulado)",
-        })
-    return {
-        "em_conformidade": not tem,
-        "desmatamento_detectado": tem,
-        "registros_pos_2020": registros,
-        "total_registros": len(registros),
-        "area_total_ha": sum(r["area_ha"] for r in registros),
-        "marco_referencia": "31/12/2020",
-        "regulacao": "EUDR (EU Deforestation Regulation)",
-        "verificado": False,
-        "fonte": "PRODES/INPE (simulado)",
-    }

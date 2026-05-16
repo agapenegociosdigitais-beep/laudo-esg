@@ -110,8 +110,6 @@ class AreasProtegidasService:
 
     Fluxo de consulta:
     1. Tenta API oficial (CNUC/MMA para UC, FUNAI/GeoServer para TI)
-    2. Se API indispon�vel, usa fallback simulado realista
-    3. Em ambiente de desenvolvimento, usa sempre o simulado
     """
 
     # WFS do CNUC/MMA para Unidades de Conserva��o
@@ -130,27 +128,44 @@ class AreasProtegidasService:
         geojson: Dict[str, Any],
         area_ha: float,
     ) -> ResultadoAreaProtegida:
-        """
-        Verifica sobreposi��o com Unidades de Conserva��o (CNUC/MMA).
+        # ── 1. Cache local ──────────────────────────────────────────────────────
+        try:
+            from app.services.cache_local_service import consultar_uc_local
+            local = await consultar_uc_local(geojson)
+            if local:
+                r = local[0]
+                pct = round((float(r.get("area_intersecao_ha") or 0) / area_ha * 100), 2) if area_ha > 0 else None
+                return ResultadoAreaProtegida(
+                    sobreposicao_detectada=True,
+                    tipo_verificacao="UC",
+                    nome_area=r.get("nome_uc"),
+                    categoria=r.get("categoria"),
+                    percentual_sobreposicao=pct,
+                    area_sobreposicao_ha=float(r.get("area_intersecao_ha") or 0),
+                    esfera=r.get("orgao"),
+                    fonte="CNUC/MMA (cache local)",
+                    verificado=True,
+                )
+            return ResultadoAreaProtegida(
+                sobreposicao_detectada=False,
+                tipo_verificacao="UC",
+                fonte="CNUC/MMA (cache local)",
+                verificado=True,
+            )
+        except Exception as e:
+            logger.warning(f"Cache UC indisponivel: {e}")
 
-        Args:
-            numero_car: C�digo CAR da propriedade
-            geojson: GeoJSON da propriedade para consulta espacial
-            area_ha: �rea total da propriedade em hectares
-
-        Returns:
-            ResultadoAreaProtegida com situa��o da sobreposi��o ou "n�o verificado".
-        """
-        if settings.ENVIRONMENT == "development":
-            logger.debug("Ambiente de desenvolvimento: usando simula��o UC.")
-            return self._simular_sobreposicao_uc(numero_car, geojson, area_ha)
-
+        # ── 2. API ao vivo ──────────────────────────────────────────────────────
         resultado = await self._consultar_cnuc(geojson)
         if resultado is not None:
             return resultado
 
-        logger.warning("API CNUC/MMA indispon�vel; usando fallback simulado.")
-        return self._simular_sobreposicao_uc(numero_car, geojson, area_ha)
+        return ResultadoAreaProtegida(
+            sobreposicao_detectada=None,
+            tipo_verificacao="UC",
+            verificado=False,
+            motivo_nao_verificado="CNUC/MMA indisponível (cache vazio + API offline)",
+        )
 
     async def verificar_sobreposicao_ti(
         self,
@@ -158,27 +173,44 @@ class AreasProtegidasService:
         geojson: Dict[str, Any],
         area_ha: float,
     ) -> ResultadoAreaProtegida:
-        """
-        Verifica sobreposi��o com Terras Ind�genas (FUNAI).
+        # ── 1. Cache local ──────────────────────────────────────────────────────
+        try:
+            from app.services.cache_local_service import consultar_ti_local
+            local = await consultar_ti_local(geojson)
+            if local:
+                r = local[0]
+                pct = round((float(r.get("area_intersecao_ha") or 0) / area_ha * 100), 2) if area_ha > 0 else None
+                return ResultadoAreaProtegida(
+                    sobreposicao_detectada=True,
+                    tipo_verificacao="TI",
+                    nome_area=r.get("nome_ti"),
+                    categoria="Terra Indígena Homologada",
+                    percentual_sobreposicao=pct,
+                    area_sobreposicao_ha=float(r.get("area_intersecao_ha") or 0),
+                    esfera="Federal",
+                    fonte="FUNAI (cache local)",
+                    verificado=True,
+                )
+            return ResultadoAreaProtegida(
+                sobreposicao_detectada=False,
+                tipo_verificacao="TI",
+                fonte="FUNAI (cache local)",
+                verificado=True,
+            )
+        except Exception as e:
+            logger.warning(f"Cache TI indisponível: {e}")
 
-        Args:
-            numero_car: C�digo CAR da propriedade
-            geojson: GeoJSON da propriedade para consulta espacial
-            area_ha: �rea total da propriedade em hectares
-
-        Returns:
-            ResultadoAreaProtegida com situa��o da sobreposi��o ou "n�o verificado".
-        """
-        if settings.ENVIRONMENT == "development":
-            logger.debug("Ambiente de desenvolvimento: usando simula��o TI.")
-            return self._simular_sobreposicao_ti(numero_car, geojson, area_ha)
-
+        # ── 2. API ao vivo ──────────────────────────────────────────────────────
         resultado = await self._consultar_funai(geojson)
         if resultado is not None:
             return resultado
 
-        logger.warning("API FUNAI indispon�vel; usando fallback simulado.")
-        return self._simular_sobreposicao_ti(numero_car, geojson, area_ha)
+        return ResultadoAreaProtegida(
+            sobreposicao_detectada=None,
+            tipo_verificacao="TI",
+            verificado=False,
+            motivo_nao_verificado="FUNAI indisponível (cache vazio + API offline)",
+        )
 
     # ?Consultas �s APIs reais (WFS) ?
 
@@ -313,135 +345,9 @@ class AreasProtegidasService:
             logger.warning(f"Erro ao consultar FUNAI: {e}")
             return None
 
-    # ?Fallbacks simulados realistas ?
 
-    def _simular_sobreposicao_uc(
-        self,
-        numero_car: str,
-        geojson: Dict[str, Any],
-        area_ha: float,
-    ) -> ResultadoAreaProtegida:
-        """
-        Simula verifica��o de sobreposi��o com UC de forma determin�stica.
-
-        Base estat�stica (SNUC 2023):
-        - ~12% dos im�veis rurais na Amaz�nia possuem alguma sobreposi��o com UC
-        - ~5% em outros biomas
-        """
-        digitos = "".join(c for c in numero_car if c.isdigit())
-        seed = int(digitos[-6:]) if len(digitos) >= 6 else int(digitos or "13")
-        percentil = (seed * 3) % 100
-
-        lat = self._extrair_latitude(geojson)
-        na_amazonia = lat > -12.0
-
-        # Lista de UCs fict�cias mas com nomes realistas por bioma
-        ucs_amazonia = [
-            ("Parque Nacional do Tapaj�s", "Parque Nacional", "Federal"),
-            ("Floresta Nacional do Amazonas", "Floresta Nacional", "Federal"),
-            ("Reserva Extrativista do Baixo Juru�", "Reserva Extrativista", "Federal"),
-            ("APA do Rio Preto", "�rea de Prote��o Ambiental", "Estadual"),
-            ("Esta��o Ecol�gica do Cuni�", "Esta��o Ecol�gica", "Federal"),
-        ]
-        ucs_outros = [
-            ("APA Serra da Canastra", "�rea de Prote��o Ambiental", "Federal"),
-            ("Parque Estadual do Cerrado", "Parque Estadual", "Estadual"),
-            ("RPPN Fazenda S�o Marcos", "Reserva Particular do Patrim�nio Natural", "Privada"),
-        ]
-
-        ucs_disponiveis = ucs_amazonia if na_amazonia else ucs_outros
-        limiar = 12 if na_amazonia else 5
-
-        if percentil < limiar:
-            # Seleciona uma UC da lista
-            idx = seed % len(ucs_disponiveis)
-            nome, categoria, esfera = ucs_disponiveis[idx]
-            pct_sobreposicao = round(5.0 + (seed % 40), 1)
-            area_sobreposicao = round(area_ha * pct_sobreposicao / 100, 2)
-
-            return ResultadoAreaProtegida(
-                sobreposicao_detectada=True,
-                tipo_verificacao="UC",
-                nome_area=nome,
-                categoria=categoria,
-                percentual_sobreposicao=pct_sobreposicao,
-                area_sobreposicao_ha=area_sobreposicao,
-                esfera=esfera,
-                fonte="CNUC/MMA (simulado)",
-                verificado=True,
-            )
-
-        return ResultadoAreaProtegida(
-            sobreposicao_detectada=False,
-            tipo_verificacao="UC",
-            fonte="CNUC/MMA (simulado)",
-            verificado=True,
-        )
-
-    def _simular_sobreposicao_ti(
-        self,
-        numero_car: str,
-        geojson: Dict[str, Any],
-        area_ha: float,
-    ) -> ResultadoAreaProtegida:
-        """
-        Simula verifica��o de sobreposi��o com TI de forma determin�stica.
-
-        Base estat�stica (FUNAI 2023):
-        - ~6% dos im�veis na Amaz�nia Legal possuem sobreposi��o com TI
-        - Casos em outros biomas s�o raros (~1%)
-        """
-        digitos = "".join(c for c in numero_car if c.isdigit())
-        seed = int(digitos[-6:]) if len(digitos) >= 6 else int(digitos or "77")
-        # Usa combina��o diferente para descorrelacionar do resultado de UC
-        percentil = (seed * 7 + 31) % 100
-
-        lat = self._extrair_latitude(geojson)
-        na_amazonia = lat > -12.0
-
-        # Terras Ind�genas fict�cias com nomes realistas
-        tis_amazonia = [
-            "Terra Ind�gena Kayap�",
-            "Terra Ind�gena Munduruku",
-            "Terra Ind�gena Yanomami",
-            "Terra Ind�gena Parakan�",
-            "Terra Ind�gena Sater�-Maw�",
-        ]
-        tis_outros = [
-            "Terra Ind�gena Xavante",
-            "Terra Ind�gena Guarani",
-        ]
-
-        tis_disponiveis = tis_amazonia if na_amazonia else tis_outros
-        limiar = 6 if na_amazonia else 1
-
-        if percentil < limiar:
-            idx = seed % len(tis_disponiveis)
-            nome = tis_disponiveis[idx]
-            pct_sobreposicao = round(3.0 + (seed % 30), 1)
-            area_sobreposicao = round(area_ha * pct_sobreposicao / 100, 2)
-
-            return ResultadoAreaProtegida(
-                sobreposicao_detectada=True,
-                tipo_verificacao="TI",
-                nome_area=nome,
-                categoria="Terra Ind�gena Homologada",
-                percentual_sobreposicao=pct_sobreposicao,
-                area_sobreposicao_ha=area_sobreposicao,
-                esfera="Federal",
-                fonte="FUNAI/GeoServer (simulado)",
-                verificado=True,
-            )
-
-        return ResultadoAreaProtegida(
-            sobreposicao_detectada=False,
-            tipo_verificacao="TI",
-            fonte="FUNAI/GeoServer (simulado)",
-            verificado=True,
-        )
-
-    # ?Utilit�rios geoespaciais ?
-
+    
+    
     def _extrair_latitude(self, geojson: Dict[str, Any]) -> float:
         """
         Extrai latitude central do GeoJSON para estimativa de bioma.

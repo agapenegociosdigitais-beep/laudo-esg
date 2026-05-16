@@ -111,6 +111,15 @@ clean: ## Remove containers, volumes e arquivos gerados
 	cd frontend && rm -rf .next node_modules 2>/dev/null || true
 	@echo "$(VERDE)✅ Limpeza concluída$(RESET)"
 
+sync: ## Sincroniza dados geoespaciais (shapefiles → PostGIS local)
+	docker compose exec backend python scripts/sync_shapefiles.py
+
+sync-prodes: ## Sincroniza apenas PRODES
+	docker compose exec backend python -c "from scripts.sync_shapefiles import sync_prodes; print(f'PRODES: {sync_prodes()} registros')"
+
+sync-embargos: ## Sincroniza apenas embargos (IBAMA + SEMAS)
+	docker compose exec backend python -c "from scripts.sync_shapefiles import sync_embargos_ibama, sync_embargos_semas; print(f'IBAMA: {sync_embargos_ibama()}, SEMAS: {sync_embargos_semas()}')"
+
 status: ## Verifica saúde da API e banco
 	@echo "--- Backend ---"
 	@curl -sf http://localhost:8000/health | python3 -m json.tool || echo "❌ Backend não acessível"

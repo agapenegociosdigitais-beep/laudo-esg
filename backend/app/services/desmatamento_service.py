@@ -43,24 +43,77 @@ class DesmatamentoService:
         geojson: Dict[str, Any],
         bioma: str,
     ) -> ResultadoDesmatamento:
-        """
-        Verifica se hà desmatamento detectado na propriedade via PRODES/INPE.
+        # ── 1. Cache local (PostGIS) — instantâneo ──────────────────────────
+        try:
+            from app.services.cache_local_service import consultar_prodes_local
+            local = await consultar_prodes_local(geojson)
+            if local:
+                return self._montar_resultado_local(local, bioma)
+        except Exception as e:
+            logger.warning(f"Cache PRODES indisponível, tentando ao vivo: {e}")
 
-        Args:
-            geojson: GeoJSON da propriedade
-            bioma: Bioma da propriedade (para contexto)
-
-        Returns:
-            ResultadoDesmatamento com detalhes do desmatamento detectado.
-        """
-        # Tenta API do TerraBrasilis (PRODES/INPE)
-        # Consulta TerraBrasilis WFS real (PRODES/INPE)
+        # ── 2. Fallback: API ao vivo (TerraBrasilis WFS) ────────────────────
         resultado = await self._consultar_terrabrasilis(geojson, bioma)
         if resultado:
             return resultado
-        # Fallback simulacao se TerraBrasilis indisponivel
-        logger.warning("TerraBrasilis indisponivel - usando simulacao")
-        return self._simular_desmatamento(geojson, bioma)
+
+        logger.error("PRODES indisponível (cache + ao vivo)")
+        raise Exception("PRODES/INPE indisponível. Não é possível verificar desmatamento sem dados reais.")
+
+    def _montar_resultado_local(self, dados: list, bioma: str) -> ResultadoDesmatamento:
+        """Converte resultado do cache local em ResultadoDesmatamento."""
+        from collections import defaultdict
+        por_ano: dict[str, float] = defaultdict(float)
+        registros_detalhados = []
+
+        for row in dados:
+            ano_raw = row.get("year")
+            area_ha = float(row.get("area_intersecao_ha") or 0)
+            if area_ha <= 0:
+                continue
+
+            try:
+                ano = int(str(ano_raw)[:4]) if ano_raw else None
+            except (ValueError, TypeError):
+                ano = None
+            ano_str = str(ano) if ano else "Ano nao informado"
+
+            por_ano[ano_str] = round(por_ano[ano_str] + area_ha, 4)
+            registros_detalhados.append({
+                "ano": ano,
+                "area_ha": round(area_ha, 4),
+                "classe": row.get("main_class") or row.get("class_name") or "desmatamento",
+            })
+
+        area_total = round(sum(por_ano.values()), 2)
+        registros_por_ano = [
+            {"ano": int(k) if k.isdigit() else k, "area_ha": round(v, 2)}
+            for k, v in sorted(por_ano.items(), reverse=True)
+        ]
+        anos_detectados = sorted([k for k in por_ano if k.isdigit()], reverse=True)
+        periodo = (
+            f"PRODES {anos_detectados[-1]}–{anos_detectados[0]}"
+            if len(anos_detectados) > 1
+            else (f"PRODES {anos_detectados[0]}" if anos_detectados else "PRODES 2008–2025")
+        )
+
+        logger.info(
+            f"PRODES cache: {len(registros_detalhados)} polígonos, "
+            f"{area_total:.2f} ha | {bioma}"
+        )
+        return ResultadoDesmatamento(
+            desmatamento_detectado=area_total > 0,
+            area_desmatada_ha=area_total,
+            periodo_referencia=periodo,
+            fonte="PRODES/INPE (cache local)",
+            detalhes={
+                "total_registros": len(registros_detalhados),
+                "bioma": bioma,
+                "metodo": "intersecao_espacial",
+                "registros_por_ano": registros_por_ano,
+                "anos_detectados": anos_detectados,
+            },
+        )
 
     async def _consultar_terrabrasilis(
         self,
@@ -255,56 +308,7 @@ class DesmatamentoService:
             logger.warning(f"Erro ao converter GeoJSON para Shapely: {e}")
             return None
 
-    def _simular_desmatamento(
-        self,
-        geojson: Dict[str, Any],
-        bioma: str,
-    ) -> ResultadoDesmatamento:
-        """
-        Simula resultado de desmatamento para desenvolvimento.
-        A probabilidade de detecção varia por bioma.
-        """
-        # Extrai coordenada central para determinismo
-        lon, lat = -55.0, -12.0
-        try:
-            if geojson.get("type") == "FeatureCollection":
-                features = geojson.get("features", [])
-                if features:
-                    coords = features[0]["geometry"]["coordinates"][0]
-                    lon = sum(c[0] for c in coords) / len(coords)
-                    lat = sum(c[1] for c in coords) / len(coords)
-        except Exception:
-            pass
-
-        # Determina desmatamento de forma reprodut??�vel por localiza??�??�o
-        seed_val = int(abs(lon * 100 + lat * 100)) % 100
-
-        # Amazônia tem maior incidência histórica de desmatamento (40% dos CARs t??�m alertas)
-        if "Amazônia" in bioma:
-            desmatamento_detectado = seed_val < 35
-            area_ha = round((seed_val % 20) * 2.5, 2) if desmatamento_detectado else 0.0
-        elif "Cerrado" in bioma:
-            desmatamento_detectado = seed_val < 25
-            area_ha = round((seed_val % 15) * 1.8, 2) if desmatamento_detectado else 0.0
-        else:
-            desmatamento_detectado = seed_val < 15
-            area_ha = round((seed_val % 10) * 1.2, 2) if desmatamento_detectado else 0.0
-
-        detalhes = {
-            "fonte": "PRODES/INPE (simulado)",
-            "bioma": bioma,
-            "classe_desmatamento": "Desflorestamento" if desmatamento_detectado else "Sem altera??�??�o",
-            "ano_deteccao": 2021 + (seed_val % 3) if desmatamento_detectado else None,
-        }
-
-        return ResultadoDesmatamento(
-            desmatamento_detectado=desmatamento_detectado,
-            area_desmatada_ha=area_ha,
-            periodo_referencia="2008-2024 (PRODES simulado)",
-            fonte="PRODES/INPE (simulado)",
-            detalhes=detalhes,
-        )
-
+    
     def verificar_moratorio_soja(
         self,
         resultado_desmat: ResultadoDesmatamento,

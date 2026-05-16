@@ -46,12 +46,6 @@ class CARService:
         )
 
     async def buscar_por_car(self, numero_car: str) -> CARResultado:
-        """
-        Busca os dados de uma propriedade pelo número do CAR.
-
-        Tenta a API do SICAR primeiro; em caso de falha ou ambiente de
-        desenvolvimento, retorna dados simulados realistas.
-        """
         # Valida e extrai o estado do número CAR
         estado = self._extrair_estado(numero_car)
         if not estado:
@@ -62,6 +56,27 @@ class CARService:
                 encontrado=False,
                 fonte="Erro de validação",
             )
+
+        # ── 0. Cache local (PostGIS) ──────────────────────────────────────
+        try:
+            from app.services.cache_local_service import consultar_car_local
+            local = await consultar_car_local(numero_car)
+            if local:
+                r = local[0]
+                return CARResultado(
+                    numero_car=numero_car,
+                    estado=r.get("estado", estado),
+                    municipio=r.get("municipio", ""),
+                    nome_propriedade=r.get("nome_imovel", "Imovel Rural"),
+                    area_ha=float(r.get("area_ha") or 0),
+                    status_car=r.get("status", "Ativo"),
+                    bioma=ESTADO_BIOMA.get(estado, "Desconhecido"),
+                    geojson=r.get("geometria_json"),
+                    fonte="GeoServer Nacional (cache local)",
+                    encontrado=True,
+                )
+        except Exception as e:
+            logger.warning(f"Cache local indisponivel: {e}")
 
         # ── Etapa 1: SEMAS-PA (prioritário para CARs do Pará) ───────────────────
         if estado == "PA":
@@ -125,9 +140,15 @@ class CARService:
                 encontrado=True,
             )
 
-        # ── Fallback: dados simulados se nenhuma fonte responder ─────────────────
-        logger.warning(f"Nenhuma fonte retornou dados para {numero_car} - usando simulacao")
-        return self._gerar_dado_simulado(numero_car, estado)
+        # ── Nao encontrado em nenhuma fonte ──────────────────────────────────
+        logger.warning(f"CAR nao encontrado em nenhuma fonte (cache + SEMAS-PA + SICAR): {numero_car}")
+        return CARResultado(
+            numero_car=numero_car,
+            estado=estado,
+            municipio="Nao encontrado",
+            encontrado=False,
+            fonte="Nenhuma fonte disponivel (cache + APIs externas offline)",
+        )
 
     async def _buscar_sicar(self, numero_car: str, estado: str) -> Optional[CARResultado]:
         """
@@ -179,79 +200,3 @@ class CARService:
         }
         return estado if estado in estados_validos else None
 
-    def _gerar_dado_simulado(self, numero_car: str, estado: str) -> CARResultado:
-        """
-        Gera dados simulados realistas para demonstração e desenvolvimento.
-        Cria um polígono retangular simples centrado no estado correspondente.
-        """
-        # Centróides aproximados dos estados brasileiros (longitude, latitude)
-        centroides: dict[str, tuple[float, float]] = {
-            "MT": (-56.0, -13.0), "PA": (-52.0, -4.0), "AM": (-64.0, -4.0),
-            "GO": (-49.5, -15.5), "MG": (-44.5, -18.5), "BA": (-41.5, -12.5),
-            "MS": (-54.5, -20.5), "TO": (-48.0, -10.0), "MA": (-44.5, -5.5),
-            "PI": (-42.5, -7.5), "CE": (-39.5, -5.5), "SP": (-48.5, -22.0),
-            "PR": (-51.5, -24.5), "RS": (-53.0, -30.0), "SC": (-50.5, -27.5),
-            "RO": (-63.0, -11.0), "AC": (-70.5, -9.0), "RR": (-61.5, 2.0),
-            "AP": (-51.5, 1.5), "RJ": (-43.0, -22.5), "ES": (-40.5, -19.5),
-            "SE": (-37.5, -10.5), "AL": (-36.5, -9.5), "PE": (-37.5, -8.5),
-            "PB": (-36.5, -7.5), "RN": (-36.5, -5.5), "DF": (-47.9, -15.8),
-        }
-        lon, lat = centroides.get(estado, (-50.0, -15.0))
-
-        # Variação aleatória determinística baseada no número CAR
-        # para gerar coordenadas diferentes por propriedade
-        hash_val = sum(ord(c) for c in numero_car) % 100
-        offset_lon = (hash_val % 10 - 5) * 0.1
-        offset_lat = (hash_val // 10 - 5) * 0.1
-        lon += offset_lon
-        lat += offset_lat
-
-        # Área simulada: polígono ~500 ha (~0.05 graus)
-        delta = 0.025
-        geojson = {
-            "type": "FeatureCollection",
-            "features": [
-                {
-                    "type": "Feature",
-                    "properties": {"numero_car": numero_car},
-                    "geometry": {
-                        "type": "Polygon",
-                        "coordinates": [[
-                            [lon - delta, lat - delta],
-                            [lon + delta, lat - delta],
-                            [lon + delta, lat + delta],
-                            [lon - delta, lat + delta],
-                            [lon - delta, lat - delta],
-                        ]],
-                    },
-                }
-            ],
-        }
-
-        municipios_por_estado: dict[str, list[str]] = {
-            "MT": ["Sorriso", "Lucas do Rio Verde", "Nova Mutum", "Sinop"],
-            "PA": ["Santarém", "Marabá", "Altamira", "Paragominas"],
-            "GO": ["Rio Verde", "Jataí", "Mineiros", "Cristalina"],
-            "MG": ["Unaí", "Paracatu", "Patos de Minas", "Uberlândia"],
-            "BA": ["Luís Eduardo Magalhães", "Barreiras", "São Desidério"],
-            "MS": ["Dourados", "Campo Grande", "Sete Quedas"],
-            "MA": ["Balsas", "São Raimundo das Mangabeiras"],
-            "TO": ["Pedro Afonso", "Formoso do Araguaia", "Campos Lindos"],
-        }
-        municipios = municipios_por_estado.get(estado, ["Município Simulado"])
-        municipio = municipios[hash_val % len(municipios)]
-
-        bioma = ESTADO_BIOMA.get(estado, "Cerrado")
-
-        return CARResultado(
-            numero_car=numero_car,
-            estado=estado,
-            municipio=municipio,
-            nome_propriedade=f"Fazenda Demo {numero_car[-6:]}",
-            area_ha=round(450 + (hash_val * 5.5), 2),
-            status_car="ATIVO",
-            bioma=bioma,
-            geojson=geojson,
-            fonte="Simulado (desenvolvimento)",
-            encontrado=True,
-        )

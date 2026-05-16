@@ -57,6 +57,7 @@ async def inicializar_banco() -> None:
     """Cria todas as tabelas no banco de dados na inicializa��o."""
     # Importa models para registr�-los no metadata do Base
     from app.models import usuario, propriedade, analise, relatorio  # noqa: F401
+    from app.models import cache_local  # noqa: F401
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
@@ -72,3 +73,14 @@ async def migrar_schema() -> None:
     async with engine.begin() as conn:
         for q in queries:
             await conn.execute(text(q))
+
+        # Executa migrations SQL do diretório scripts/migrations/
+        from pathlib import Path
+        migrations_dir = Path(__file__).parent.parent.parent / "scripts" / "migrations"
+        if migrations_dir.is_dir():
+            for sql_file in sorted(migrations_dir.glob("*.sql")):
+                conteudo = sql_file.read_text(encoding="utf-8")
+                for statement in conteudo.split(";"):
+                    stmt = statement.strip()
+                    if stmt and not stmt.startswith("--"):
+                        await conn.execute(text(stmt))
