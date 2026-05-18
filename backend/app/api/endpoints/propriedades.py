@@ -120,7 +120,22 @@ async def buscar_por_car(dados: BuscaCARRequest, db: SessaoDB, usuario: UsuarioA
     await db.refresh(nova_propriedade)
 
     # Retorna com o ID interno preenchido
-    resultado_sicar.id = nova_propriedade.id
+        resultado_sicar.id = nova_propriedade.id
+
+    # ── Notificacao Telegram ──────────────────────────────────────────
+    try:
+        from app.services.notificacao_service import notificar_consulta_car
+        await notificar_consulta_car(
+            resultado_sicar.numero_car,
+            resultado_sicar.nome_propriedade,
+            resultado_sicar.municipio,
+            resultado_sicar.status_car or "?",
+            resultado_sicar.area_ha or 0,
+            resultado_sicar.fonte or "?",
+        )
+    except Exception:
+        pass
+
     return resultado_sicar
 
 

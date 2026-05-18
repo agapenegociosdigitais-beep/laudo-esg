@@ -349,6 +349,36 @@ async def _processar_analise(analise_id: uuid.UUID) -> None:
                 f"Score: {analise.score_esg} | Risco: {analise.nivel_risco}"
             )
 
+            # Notificacao Telegram de pendencias
+            try:
+                tem_pendencias = (
+                    (res_ibama.embargo_detectado is True) or
+                    (res_semas.embargo_detectado is True) or
+                    res_demat.desmatamento_detectado or
+                    (conf_eudr and not conf_eudr.conforme) or
+                    (res_uc.sobreposicao_detectada is True) or
+                    (res_ti.sobreposicao_detectada is True) or
+                    quilombola.get("sobreposicao") or
+                    assentamento.get("sobreposicao") or
+                    trabalho.get("trabalho_escravo")
+                )
+                if tem_pendencias:
+                    from app.services.notificacao_service import notificar_pendencias
+                    await notificar_pendencias(
+                        numero_car,
+                        propriedade.nome_propriedade or "",
+                        analise.score_esg or 0,
+                        analise.nivel_risco or "?",
+                        res_demat.desmatamento_detectado,
+                        res_demat.area_desmatada_ha or 0,
+                        res_ibama.embargo_detectado is True,
+                        res_semas.embargo_detectado is True,
+                        (res_demat.detalhes or {}).get("anos_detectados", []),
+                        conf_eudr.conforme if conf_eudr else True,
+                    )
+            except Exception:
+                pass
+
         except Exception as exc:
             logger.error(f"Erro ao processar análise {analise_id}: {exc}", exc_info=True)
             analise.status = "erro"

@@ -1,0 +1,134 @@
+[
+  {
+    "name": "SEMAS-PA GeoServer",
+    "url": "https://car.semas.pa.gov.br/geoserver/wfs",
+    "hostname": "car.semas.pa.gov.br",
+    "dns": {
+      "success": true,
+      "ip": "104.18.29.40"
+    },
+    "ssl": {
+      "success": true,
+      "subject": {}
+    },
+    "http": {
+      "success": false,
+      "error": "HTTP Error 403: Forbidden"
+    },
+    "error": "HTTP falhou: HTTP Error 403: Forbidden"
+  },
+  {
+    "name": "SICAR Nacional",
+    "url": "https://geoserver.car.gov.br/geoserver/sicar/wfs",
+    "hostname": "geoserver.car.gov.br",
+    "dns": {
+      "success": true,
+      "ip": "200.152.46.60"
+    },
+    "ssl": {
+      "success": true,
+      "subject": {}
+    },
+    "http": {
+      "success": true,
+      "status_code": 200,
+      "response_time": 0.8192567825317383,
+      "content_length": 1029
+    },
+    "error": null
+  },
+  {
+    "name": "TerraBrasilis PRODES",
+    "url": "https://terrabrasilis.dpi.inpe.br/geoserver/ows",
+    "hostname": "terrabrasilis.dpi.inpe.br",
+    "dns": {
+      "success": true,
+      "ip": "150.163.2.5"
+    },
+    "ssl": {
+      "success": true,
+      "subject": {}
+    },
+    "http": {
+      "success": true,
+      "status_code": 200,
+      "response_time": 0.6275172233581543,
+      "content_length": 1503
+    },
+    "error": null
+  },
+  {
+    "name": "CNUC/MMA",
+    "url": "https://sistemas.mma.gov.br/cnuc/wfs",
+    "hostname": "sistemas.mma.gov.br",
+    "dns": {
+      "success": true,
+      "ip": "45.231.205.6"
+    },
+    "ssl": {
+      "success": true,
+      "subject": {}
+    },
+    "http": {
+      "success": false,
+      "error": "HTTP Error 404: Not Found"
+    },
+    "error": "HTTP falhou: HTTP Error 404: Not Found"
+  },
+  {
+    "name": "FUNAI",
+    "url": "https://geoserver.funai.gov.br/geoserver/Funai/wfs",
+    "hostname": "geoserver.funai.gov.br",
+    "dns": {
+      "success": true,
+      "ip": "189.9.55.27"
+    },
+    "ssl": {
+      "success": true,
+      "subject": {}
+    },
+    "http": {
+      "success": false,
+      "error": "HTTP Error 400: "
+    },
+    "error": "HTTP falhou: HTTP Error 400: "
+  },
+  {
+    "name": "INCRA WFS",
+    "url": "https://cmr.funai.gov.br/geoserver/wfs",
+    "hostname": "cmr.funai.gov.br",
+    "dns": {
+      "success": true,
+      "ip": "189.9.55.13"
+    },
+    "ssl": {
+      "success": true,
+      "subject": {}
+    },
+    "http": {
+      "success": true,
+      "status_code": 200,
+      "response_time": 1.8129875659942627,
+      "content_length": 1510
+    },
+    "error": null
+  },
+  {
+    "name": "IBAMA CTF",
+    "url": "https://servicos.ibama.gov.br/ctf/publico/areasembargadas/consultar",
+    "hostname": "servicos.ibama.gov.br",
+    "dns": {
+      "success": true,
+      "ip": "144.33.23.214"
+    },
+    "ssl": {
+      "success": true,
+      "subject": {}
+    },
+    "http": {
+      "success": false,
+      "error": "HTTP Error 404: Not Found"
+    },
+    "error": "HTTP falhou: HTTP Error 404: Not Found"
+  }
+]
