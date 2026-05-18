@@ -1,39 +1,10 @@
-FROM node:20-alpine AS deps
+FROM node:20-alpine
 WORKDIR /app
-COPY package.json package-lock.json* ./
-RUN npm install
-
-FROM node:20-alpine AS builder
-WORKDIR /app
-COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-COPY src ./src
-COPY public ./public
+RUN npm install
 ENV NEXT_TELEMETRY_DISABLED=1
-# Recebe a URL pública da API como build arg — necessário para NEXT_PUBLIC_* ser gravado no bundle
-ARG NEXT_PUBLIC_API_URL=http://127.0.0.1:8000
-ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
-RUN npm run build 2>&1 | tee build.log || echo "Build completed with warnings"
-RUN if [ ! -d "/app/.next" ]; then echo "ERROR: Build failed"; exit 1; fi
-
-FROM node:20-alpine AS runner
-WORKDIR /app
-ENV NODE_ENV=production
-ENV NEXT_TELEMETRY_DISABLED=1
-
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nextjs
-
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/package.json ./package.json
-COPY --from=builder /app/package-lock.json ./package-lock.json
-COPY --from=builder /app/.next ./.next
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/src ./src
-
-USER nextjs
-EXPOSE 3000
+ENV NEXT_PUBLIC_API_URL=http://localhost:8000
 ENV PORT=3000
-ENV HOSTNAME="0.0.0.0"
-
-CMD ["npx", "next", "start"]
+ENV HOSTNAME=0.0.0.0
+EXPOSE 3000
+CMD ["npx", "next", "dev", "-p", "3000"]

@@ -103,3 +103,38 @@ async def consultar_car_local(numero_car: str) -> list:
     except Exception as e:
         logger.warning(f"Cache CAR {numero_car}: {e}")
         return []
+
+
+async def consultar_car_geoserver(numero_car: str) -> dict | None:
+    """Consulta o GeoServer nacional diretamente (WFS CQL) — fallback quando cache nao tem o CAR."""
+    import httpx
+    layers = ["vw_car", "vw_car_ativo", "vw_car_pendente", "vw_car_suspenso", "vw_car_cancelado"]
+    for layer in layers:
+        try:
+            async with httpx.AsyncClient(timeout=15, verify=False) as client:
+                resp = await client.get(
+                    "https://geoserverdw.apps.geoapplications.net/geoserver/wfs/",
+                    params={
+                        "service": "WFS", "version": "2.0.0", "request": "GetFeature",
+                        "typeName": f"workspace_sicar:{layer}",
+                        "CQL_FILTER": f"tx_cod_imovel='{numero_car}'",
+                        "outputFormat": "application/json", "count": "1",
+                    },
+                    headers={"User-Agent": "Mozilla/5.0"},
+                )
+                data = resp.json()
+                feats = data.get("features", [])
+                if feats:
+                    props = feats[0].get("properties", {})
+                    geom = feats[0].get("geometry")
+                    return {
+                        "estado": (props.get("tx_cod_imovel") or numero_car)[:2],
+                        "municipio": props.get("tx_nome_municipio") or props.get("tx_nome_mu", ""),
+                        "nome_imovel": props.get("tx_nome_imovel") or props.get("tx_nome_im", ""),
+                        "area_ha": float(props.get("num_area_imovel") or props.get("num_area_i") or 0),
+                        "status": props.get("tx_status_imovel") or props.get("tx_status_", "Pendente"),
+                        "geometria": geom,
+                    }
+        except Exception:
+            continue
+    return None

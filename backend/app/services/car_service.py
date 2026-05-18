@@ -78,6 +78,26 @@ class CARService:
         except Exception as e:
             logger.warning(f"Cache local indisponivel: {e}")
 
+        # ── 0.5 GeoServer nacional (consulta direta, sem download) ───────
+        try:
+            from app.services.cache_local_service import consultar_car_geoserver
+            gs = await consultar_car_geoserver(numero_car)
+            if gs:
+                return CARResultado(
+                    numero_car=numero_car,
+                    estado=gs.get("estado", estado),
+                    municipio=gs.get("municipio", ""),
+                    nome_propriedade=gs.get("nome_imovel", "Imovel Rural"),
+                    area_ha=float(gs.get("area_ha") or 0),
+                    status_car=gs.get("status", "Pendente"),
+                    bioma=ESTADO_BIOMA.get(estado, "Desconhecido"),
+                    geojson=gs.get("geometria"),
+                    fonte="GeoServer Nacional (consulta direta)",
+                    encontrado=True,
+                )
+        except Exception as e:
+            logger.warning(f"GeoServer nacional indisponivel: {e}")
+
         # ── Etapa 1: SEMAS-PA (prioritário para CARs do Pará) ───────────────────
         if estado == "PA":
             from app.services.semas_service import buscar_car_semas

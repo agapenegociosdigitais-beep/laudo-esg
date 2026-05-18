@@ -373,51 +373,73 @@ class DesmatamentoService:
         """
         Verifica conformidade com a EUDR (EU Deforestation Regulation).
 
-        Regulamento (UE) 2023/1115 �????à em vigor a partir de 30 dez 2024.
-        Exige que produtos comercializados na UE não provenham de áreas
-        desmatadas ou degradadas após 31 de dezembro de 2020.
+        Regulamento (UE) 2023/1115 em vigor a partir de 30 dez 2024.
+        Exige que produtos comercializados na UE nao provenham de areas
+        desmatadas ou degradadas apos 31 de dezembro de 2020.
 
-        Commodities afetadas: soja, gado, ??�leo de palma, madeira, caf??�,
+        Anos verificados: 2021, 2022, 2023, 2024, 2025.
+        Commodities afetadas: soja, gado, oleo de palma, madeira, cafe,
         cacau, borracha e produtos derivados.
         """
-        if resultado_desmat.desmatamento_detectado and resultado_desmat.area_desmatada_ha > 0:
-            detalhes_dict = resultado_desmat.detalhes or {}
-            ano_deteccao = detalhes_dict.get("ano_deteccao")
-
-            # Verifica se o desmatamento ocorreu após a data de corte EUDR
-            desmatamento_pos_2020 = (
-                ano_deteccao is None or  # Sem data confirmada = risco
-                (isinstance(ano_deteccao, int) and ano_deteccao >= 2021)
+        if not resultado_desmat.desmatamento_detectado or resultado_desmat.area_desmatada_ha <= 0:
+            return ResultadoConformidade(
+                conforme=True,
+                nivel_risco="BAIXO",
+                detalhe=(
+                    "Nenhum desmatamento detectado apos 31/12/2020. "
+                    "Propriedade em conformidade com os requisitos da EUDR."
+                ),
+                recomendacoes=[
+                    "Documente e guarde evidencias de conformidade por no minimo 5 anos.",
+                    "Implemente sistema de monitoramento continuo via satelite.",
+                    "Prepare dossie de due diligence para exportadores europeus.",
+                ],
             )
 
-            if desmatamento_pos_2020:
-                return ResultadoConformidade(
-                    conforme=False,
-                    nivel_risco="CRÍTICO",
-                    detalhe=(
-                        f"N????O CONFORME com EUDR: Desmatamento de {resultado_desmat.area_desmatada_ha:.1f} ha "
-                        f"detectado após 31/12/2020. Produtos desta propriedade não podem ser "
-                        f"exportados para a Uni??�o Europeia sem regulariza??�??�o. "
-                        f"Fonte: {resultado_desmat.fonte}"
-                    ),
-                    recomendacoes=[
-                        "Bloqueie exporta??�??�es para a UE atà regulariza??�??�o.",
-                        "Elabore um plano de due diligence conforme EUDR Art. 8.",
-                        "Contrate sistema de rastreabilidade geoespacial certificado.",
-                        "Consulte importadores europeus sobre requisitos espec??�ficos.",
-                    ],
-                )
+        detalhes_dict = resultado_desmat.detalhes or {}
+        anos_detectados = detalhes_dict.get("anos_detectados", [])
+        registros_por_ano = detalhes_dict.get("registros_por_ano", [])
+
+        # Anos EUDR: 2021 a 2025
+        ANOS_EUDR = {2021, 2022, 2023, 2024, 2025}
+        anos_eudr = [a for a in anos_detectados if isinstance(a, int) and a in ANOS_EUDR]
+        anos_eudr_int = [int(a) for a in anos_eudr if isinstance(a, (int, str)) and str(a).isdigit()]
+
+        # Calcula area desmatada apenas nos anos EUDR
+        area_eudr_ha = sum(
+            r.get("area_ha", 0) for r in registros_por_ano
+            if r.get("ano") in ANOS_EUDR or (isinstance(r.get("ano"), str) and r["ano"].isdigit() and int(r["ano"]) in ANOS_EUDR)
+        )
+
+        if anos_eudr or area_eudr_ha > 0:
+            anos_str = ", ".join(str(a) for a in sorted(anos_eudr or ANOS_EUDR))
+            return ResultadoConformidade(
+                conforme=False,
+                nivel_risco="CRITICO" if area_eudr_ha > 10 else "ALTO",
+                detalhe=(
+                    f"NAO CONFORME com EUDR: Desmatamento detectado nos anos {anos_str} "
+                    f"(area total: {area_eudr_ha:.1f} ha). Produtos desta propriedade nao podem ser "
+                    f"exportados para a Uniao Europeia sem regularizacao. "
+                    f"Fonte: {resultado_desmat.fonte}"
+                ),
+                recomendacoes=[
+                    "Bloqueie exportacoes para a UE ate regularizacao.",
+                    "Elabore um plano de due diligence conforme EUDR Art. 8.",
+                    "Contrate sistema de rastreabilidade geoespacial certificado.",
+                    "Consulte importadores europeus sobre requisitos especificos.",
+                ],
+            )
 
         return ResultadoConformidade(
             conforme=True,
             nivel_risco="BAIXO",
             detalhe=(
-                "Nenhum desmatamento detectado após 31/12/2020. "
+                "Nenhum desmatamento detectado nos anos 2021-2025. "
                 "Propriedade em conformidade com os requisitos da EUDR."
             ),
             recomendacoes=[
-                "Documente e guarde evid??�ncias de conformidade por no m??�nimo 5 anos.",
-                "Implemente sistema de monitoramento cont??�nuo via sat??�lite.",
-                "Prepare dossià de due diligence para exportadores europeus.",
+                "Documente e guarde evidencias de conformidade por no minimo 5 anos.",
+                "Implemente sistema de monitoramento continuo via satelite.",
+                "Prepare dossie de due diligence para exportadores europeus.",
             ],
         )

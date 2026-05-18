@@ -6,6 +6,7 @@ Endpoint: https://geoserver.car.gov.br/geoserver/sicar/wfs
 import logging
 import httpx
 from typing import Optional
+import ssl
 
 logger = logging.getLogger(__name__)
 
@@ -51,6 +52,12 @@ TIPO_MAP = {
 }
 
 
+
+# Contexto SSL para contornar problemas de certificado no SICAR
+_ssl_context = ssl.create_default_context()
+_ssl_context.check_hostname = False
+_ssl_context.verify_mode = ssl.CERT_NONE
+
 async def buscar_car_sicar(car_numero: str) -> dict:
     """
     Busca dados e geometria real de um CAR no SICAR via WFS público.
@@ -69,7 +76,7 @@ async def buscar_car_sicar(car_numero: str) -> dict:
 
     try:
         async with httpx.AsyncClient(
-            timeout=30, verify=False, headers=HEADERS
+            timeout=30, verify=_ssl_context, headers=HEADERS
         ) as client:
             resp = await client.get(SICAR_WFS, params={
                 "service": "WFS",

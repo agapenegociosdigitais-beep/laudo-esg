@@ -54,7 +54,7 @@ def baixar_zip(layer: str) -> BytesIO:
     return BytesIO(resp.content)
 
 
-def importar_zip(zip_data: BytesIO, tabela: str, colunas: dict, srid: int = 4326) -> int:
+def importar_zip(zip_data: BytesIO, tabela: str, colunas: dict, srid: int = 4326, drop: bool = True) -> int:
     """Extrai shapefile ZIP e importa via WKB (ST_GeomFromWKB)."""
     tmpdir = tempfile.mkdtemp(prefix="sync_")
     try:
@@ -76,13 +76,14 @@ def importar_zip(zip_data: BytesIO, tabela: str, colunas: dict, srid: int = 4326
         gdf = gdf.rename(columns=colunas_validas)
         gdf = gdf.set_geometry("geometry")
 
-        # Drop e recria
+        # Drop e recria (apenas primeira camada)
         with engine.begin() as conn:
-            conn.execute(text(f"DROP TABLE IF EXISTS {tabela} CASCADE"))
-            cols_ddl = ", ".join(f"{dest} TEXT" for dest in colunas_validas.values())
-            conn.execute(text(f"CREATE TABLE {tabela} ({cols_ddl})"))
-            conn.execute(text(f"SELECT AddGeometryColumn('public', '{tabela}', 'geom', {srid}, 'MULTIPOLYGON', 2)"))
-            conn.execute(text(f"CREATE INDEX idx_{tabela}_geom ON {tabela} USING GIST (geom)"))
+            if drop:
+                conn.execute(text(f"DROP TABLE IF EXISTS {tabela} CASCADE"))
+                cols_ddl = ", ".join(f"{dest} TEXT" for dest in colunas_validas.values())
+                conn.execute(text(f"CREATE TABLE {tabela} ({cols_ddl})"))
+                conn.execute(text(f"SELECT AddGeometryColumn('public', '{tabela}', 'geom', {srid}, 'MULTIPOLYGON', 2)"))
+                conn.execute(text(f"CREATE INDEX idx_{tabela}_geom ON {tabela} USING GIST (geom)"))
 
         # Insere em lotes
         cols_dest = list(colunas_validas.values())
@@ -180,14 +181,29 @@ def sync_deter() -> int:
     })
 
 def sync_car_ativo() -> int:
-    return importar_zip(baixar_zip("workspace_sicar:vw_car_ativo"), "cache_car_ativo", {
-        # Nomes truncados (shapefile DBF limita a 10 chars)
+    """Importa todas as camadas de CAR (ativo, pendente, suspenso, cancelado)."""
+    layers = [
+        "workspace_sicar:vw_car_ativo",
+        "workspace_sicar:vw_car_pendente",
+        "workspace_sicar:vw_car_suspenso",
+        "workspace_sicar:vw_car_cancelado",
+        "workspace_sicar:vw_car",
+    ]
+    colunas = {
         "tx_cod_imo": "cod_imovel", "tx_status_": "status",
         "tx_nome_im": "nome_imovel", "tx_nome_pr": "nome_proprietario",
         "tx_cpf_cnp": "cpf_cnpj", "tx_nome_mu": "municipio",
         "num_area_i": "area_ha", "tx_des_con": "condicao",
         "tx_tipo_im": "tipo_imovel",
-    })
+    }
+
+    total = 0
+    for i, layer in enumerate(layers):
+        logger.info(f"  CAR layer {i+1}/{len(layers)}: {layer}")
+        n = importar_zip(baixar_zip(layer), "cache_car_ativo", colunas, drop=(i == 0))
+        total += n
+
+    return total
 
 
 FONTES = [

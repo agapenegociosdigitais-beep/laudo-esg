@@ -36,6 +36,7 @@ export default function DashboardPage() {
   const [erroAnalise, setErroAnalise] = useState('')
   const [gerandoRelatorio, setGerandoRelatorio] = useState(false)
   const [urlRelatorio, setUrlRelatorio] = useState('')
+  const [overlays, setOverlays] = useState<Record<string, unknown> | null>(null)
 
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
@@ -59,6 +60,7 @@ export default function DashboardPage() {
     setAnalise(null)
     setUrlRelatorio('')
     setErroAnalise('')
+    setOverlays(null)
     setEtapa('propriedade')
   }
 
@@ -108,6 +110,20 @@ export default function DashboardPage() {
           if (analiseAtual.status === 'concluido') {
             clearInterval(pollingRef.current!)
             setEtapa('resultado')
+            // Busca geometrias de sobreposicao para o mapa
+            if (propriedade?.id) {
+              try {
+                const token = document.cookie.split('; ').find(r => r.startsWith('token='))?.split('=')[1]
+                const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+                const resp = await fetch(`${BASE_URL}/api/v1/propriedades/${propriedade.id}/sobreposicoes`, {
+                  headers: { Authorization: `Bearer ${token}` }
+                })
+                if (resp.ok) {
+                  const data = await resp.json()
+                  setOverlays(data)
+                }
+              } catch { /* overlay opcional */ }
+            }
           } else if (analiseAtual.status === 'erro') {
             clearInterval(pollingRef.current!)
             setErroAnalise(analiseAtual.erro_mensagem || 'Erro durante a análise.')
@@ -195,7 +211,7 @@ export default function DashboardPage() {
             </h2>
             <span className="text-xs text-gray-400">© OpenStreetMap</span>
           </div>
-          <MapComponent geojson={propriedade?.geojson} altura="380px" />
+          <MapComponent geojson={propriedade?.geojson} overlays={overlays as never} altura="380px" />
         </div>
 
         {propriedade && (
