@@ -1,13 +1,8 @@
-# Eureka Terra — Sincronização automática de dados geoespaciais
-# 
-# Instalar na VPS:
-#   crontab /root/eureka-terra/scripts/crontab.txt
-#
-# Verificar:
-#   crontab -l
+# Eureka Terra — Sincronizacao automatica de dados geoespaciais
+# Instalar: crontab /root/eureka-terra/scripts/crontab.txt
 
-# A cada 3 dias às 3h da manhã — todas as fontes
-0 3 */3 * * /usr/bin/docker exec eureka_backend python scripts/sync_shapefiles.py >> /var/log/eureka_sync.log 2>&1
+# Auto-sync inteligente todo dia a meia-noite
+0 0 * * * /usr/bin/docker exec eureka_backend python scripts/auto_sync.py >> /var/log/eureka_auto_sync.log 2>&1
 
-# Diário às 2h — apenas embargos (dados mais voláteis)
-0 2 * * * /usr/bin/docker exec eureka_backend python -c "from scripts.sync_shapefiles import sync_embargos_ibama, sync_embargos_semas; sync_embargos_ibama(); sync_embargos_semas()" >> /var/log/eureka_sync_daily.log 2>&1
+# Rotacao de log (manter 30 dias)
+0 1 * * * find /var/log/eureka_*.log -mtime +30 -delete
