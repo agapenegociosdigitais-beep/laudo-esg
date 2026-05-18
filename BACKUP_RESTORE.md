@@ -1,7 +1,7 @@
 # Eureka Terra — Backup e Restauração
 
-**Data:** 15/05/2026  
-**Versão:** Pós-migração para GeoServer Nacional Unificado
+**Data:** 18/05/2026  
+**Versão:** v2.0 — GeoServer Nacional + PDF profissional + Mapa interativo
 
 ---
 
@@ -34,17 +34,91 @@ Fonte única: https://geoserverdw.apps.geoapplications.net/geoserver/wfs/
 | `Makefile` | Modificado | Comandos `make sync`, `make sync-prodes`, `make sync-embargos` |
 | `.env` | Modificado | NEXT_PUBLIC_API_URL apontando para localhost |
 
-### Bugs corrigidos
+### Bugs corrigidos (histórico)
 
 1. `embargos_service.py`: CQL `main_class='desmatamento'` (minúsculo) perdia dados 2021+
 2. `embargos_service.py`: 3 exception handlers vazios retornavam None silenciosamente
 3. `conformidade_service.py`: truncado — faltavam `verificar_assentamentos`, `verificar_trabalho_escravo`, `calcular_balanco_ambiental`
 4. `areas_protegidas_service.py`: `verificar_sobreposicao_uc/ti` retornavam None implícito
 5. `car_service.py`: Exception não tratada causava 500 quando APIs externas offline
+6. **Coordenadas invertidas**: Shapefiles brasileiros têm [lat, lon] em vez de [lon, lat] (GeoJSON). Corrigido com `ST_FlipCoordinates()`.
+7. **DBF truncado**: Colunas de shapefile truncadas a 10 caracteres. Mapeamento corrigido no sync.
+8. **Encoding Windows→Linux**: Arquivos `.py` com caracteres acentuados quebram no Ubuntu. Script de correção incluso.
+9. **PDF**: ParagraphStyle inline duplicado, estilo `ci` conflitante, tabela desmatamento com objetos Paragraph crus.
 
----
+## Novas funcionalidades (v2.0)
 
-## Shapefiles baixados
+### Mapa Interativo
+- **Satélite**: Botão 🛰 alterna entre OpenStreetMap e ESRI World Imagery
+- **Overlays**: Após análise ESG, o mapa exibe polígonos coloridos:
+  - 🔴 Embargos, 🟠 PRODES (com ano no label), 🟢 UC, 🟣 TI, 🟡 Assentamentos, 🩷 Quilombolas
+- **PRODES por ano**: Cada polígono tem cor por período (2008-2016 amarelo, 2017-2020 laranja, 2021+ vermelho)
+- **Labels**: Ano fixo no centro de cada polígono PRODES, sem precisar clicar
+- **Popup**: Clique em qualquer polígono para ver detalhes (TAD, área, ano, órgão)
+
+### Relatório PDF Profissional
+- **Capa**: Verde escuro com score ESG, dados do CAR, nº do laudo
+- **Mapa de satélite** (página 1): Imagem ESRI com polígono da propriedade (verde) + áreas PRODES recortadas (coloridas por período)
+- **6 seções**: Score ESG, Identificação, Embargos, Áreas Protegidas, Desmatamento PRODES, Checklist
+- **Checklist**: 11 itens de conformidade com ícones OK/XX
+- **Registros por ano**: Lista detalhada de área desmatada por ano
+- **Aviso legal**: Fontes oficiais, validade 90 dias
+
+### EUDR Aprimorado
+- Verifica explicitamente anos 2021, 2022, 2023, 2024, 2025
+- Calcula área total desmatada no período EUDR
+- Exibe quais anos tiveram desmatamento
+
+### Painel Administrativo
+- URL: `/admin/login`
+- Dashboard com estatísticas, gestão de clientes, log de pesquisas
+- CARs problemáticos, exportação, notificações
+
+## VPS — Dados de acesso
+
+| Recurso | URL / IP | Usuário | Senha |
+|---|---|---|---|
+| SSH | `23.106.45.137:22` | root | JVghqGUersYW6h8Q |
+| Painel ICP | `https://vps7522.panel.icontainer.net:2090/admin` | vps7522 | ec6a8ba752 |
+| Portal Cliente | `https://painel.integrator.host` | — | — |
+| Provedor | **Integrator Host** (Brasil) | — | — |
+| Domínio | `vps7522.panel.icontainer.net` | — | — |
+| Plano | VPS ICP Core: 4 vCore, 6GB RAM, 100GB SSD | — | — |
+
+### Comandos de deploy na VPS
+
+```bash
+cd /root/eureka-terra
+git pull origin main
+docker compose build backend
+docker compose up -d
+
+# Primeiro sync (demora ~15 min)
+docker exec eureka_backend pip install psycopg2-binary geoalchemy2 -q
+cp scripts/sync_shapefiles.py backend/scripts/
+docker exec eureka_backend python scripts/sync_shapefiles.py
+
+# Corrigir coordenadas
+docker exec eureka_postgres psql -U eureka -d eureka_db -c "
+DO \$\$ DECLARE t TEXT; BEGIN
+  FOR t IN SELECT table_name FROM information_schema.columns
+    WHERE table_name LIKE 'cache_%' AND table_name != 'cache_sync_log'
+    AND column_name = 'geom' GROUP BY table_name
+  LOOP EXECUTE 'UPDATE ' || t || ' SET geom = ST_FlipCoordinates(geom)';
+  END LOOP;
+END \$\$;
+"
+
+# Corrigir encoding (se arquivos quebrarem)
+cd /root/eureka-terra
+find . -name "*.py" -path "*/backend/*" | while read f; do
+  python3 -c "
+d=open('$f','rb').read()
+d=d.replace(b'\xe7',b'c').replace(b'\xe3',b'a').replace(b'\xe9',b'e')
+open('$f','wb').write(d)
+"
+done
+```
 
 ```
 SHAPEFILES/                         Total: ~750 MB
